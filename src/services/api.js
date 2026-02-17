@@ -1,37 +1,38 @@
-import {
-  myTeamPlayers,
-  teamSummary,
-  gameweekHistory,
-  projectedPoints,
-  availablePlayers,
-  leagueData,
-} from "../data/mockData";
+import { ref, get, child } from "firebase/database";
+import { db } from "../firebase";
 
-const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+const dbRef = ref(db);
+
+async function read(path) {
+  const snapshot = await get(child(dbRef, path));
+  if (!snapshot.exists()) {
+    throw new Error(`No data found at ${path}`);
+  }
+  return snapshot.val();
+}
 
 export async function fetchMyTeam() {
-  await delay(600);
-  return { players: myTeamPlayers, summary: teamSummary };
+  const [players, summary] = await Promise.all([
+    read("ff2026/myTeamPlayers"),
+    read("ff2026/teamSummary"),
+  ]);
+  return { players, summary };
 }
 
 export async function fetchGameweekHistory() {
-  await delay(400);
-  return gameweekHistory;
+  return read("ff2026/gameweekHistory");
 }
 
 export async function fetchProjectedPoints() {
-  await delay(400);
-  return projectedPoints;
+  return read("ff2026/projectedPoints");
 }
 
 export async function fetchAvailablePlayers() {
-  await delay(500);
-  return availablePlayers;
+  return read("ff2026/availablePlayers");
 }
 
 export async function fetchLeagueData() {
-  await delay(400);
-  return leagueData;
+  return read("ff2026/leagueData");
 }
 
 export function analyzeTransfer(playerOut, playerIn, gameweeks) {
