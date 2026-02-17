@@ -3,7 +3,8 @@ import MyTeam from "./components/MyTeam";
 import PointsPerformance from "./components/PointsPerformance";
 import TradeAnalyzer from "./components/TradeAnalyzer";
 import Fixtures from "./components/Fixtures";
-import UserPortal from "./components/portal/UserPortal";
+import LoginPage from "./components/auth/LoginPage";
+import { AuthProvider, useAuth } from "./context/AuthContext";
 import "./App.css";
 
 const TABS = [
@@ -36,13 +37,9 @@ const iconMap = {
   ),
 };
 
-export default function App() {
+function Dashboard() {
+  const { user, logout } = useAuth();
   const [activeTab, setActiveTab] = useState("team");
-  const [currentView, setCurrentView] = useState("ff");
-
-  if (currentView === "portal") {
-    return <UserPortal onBack={() => setCurrentView("ff")} />;
-  }
 
   return (
     <div className="app">
@@ -67,12 +64,12 @@ export default function App() {
               </button>
             ))}
           </nav>
-          <button
-            className="btn btn-primary"
-            onClick={() => setCurrentView("portal")}
-          >
-            User Portal
-          </button>
+          <div className="user-info">
+            <span className="user-name">{user.displayName}</span>
+            <button className="btn btn-secondary" onClick={logout}>
+              Logout
+            </button>
+          </div>
         </div>
       </header>
 
@@ -83,5 +80,27 @@ export default function App() {
         {activeTab === "fixtures" && <Fixtures />}
       </main>
     </div>
+  );
+}
+
+function AppContent() {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="app-loading">
+        <div className="loading-spinner" />
+      </div>
+    );
+  }
+
+  return user ? <Dashboard /> : <LoginPage />;
+}
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
   );
 }

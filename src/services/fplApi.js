@@ -1,5 +1,13 @@
 const FPL_BASE = "https://fantasy.premierleague.com/api";
-export const MANAGER_ID = 5398119;
+let managerId = 5398119;
+
+export function setManagerId(id) {
+  managerId = Number(id);
+}
+
+export function getManagerId() {
+  return managerId;
+}
 
 let bootstrapCache = null;
 let fixturesCache = null;
@@ -93,15 +101,15 @@ export async function getBootstrap() {
 }
 
 export async function getManagerInfo() {
-  return fetchJson(`entry/${MANAGER_ID}/`);
+  return fetchJson(`entry/${managerId}/`);
 }
 
 export async function getManagerHistory() {
-  return fetchJson(`entry/${MANAGER_ID}/history/`);
+  return fetchJson(`entry/${managerId}/history/`);
 }
 
 export async function getManagerPicks(gw) {
-  return fetchJson(`entry/${MANAGER_ID}/event/${gw}/picks/`);
+  return fetchJson(`entry/${managerId}/event/${gw}/picks/`);
 }
 
 export async function getFixtures() {
