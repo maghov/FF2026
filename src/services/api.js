@@ -262,17 +262,16 @@ export async function fetchAvailablePlayers() {
   const myPlayerIds = new Set(picksData.picks.map((p) => p.element));
   const upcomingByTeam = getUpcomingFixturesByTeam(fixtures, teams, currentGw);
 
-  // Top available players not in the manager's team
+  // All available players not in the manager's squad
   const candidates = bootstrap.elements
     .filter(
       (p) =>
         !myPlayerIds.has(p.id) &&
-        parseFloat(p.form) > 3 &&
         p.minutes > 0 &&
         p.status === "a"
     )
     .sort((a, b) => parseFloat(b.form) - parseFloat(a.form))
-    .slice(0, 25);
+    .slice(0, 150);
 
   return candidates.map((p) => {
     const team = teams[p.team];
@@ -288,6 +287,7 @@ export async function fetchAvailablePlayers() {
       price: p.now_cost / 10,
       totalPoints: p.total_points,
       form,
+      selectedByPercent: parseFloat(p.selected_by_percent) || 0,
       upcomingFixtures: teamFixtures.slice(0, 5),
       expectedPoints: teamFixtures
         .slice(0, 5)
