@@ -66,22 +66,22 @@ export default function AdminPage() {
       {/* Stats cards */}
       <div className="admin-stats">
         <div className="stat-card">
-          <div className="stat-value">{totalUsers}</div>
-          <div className="stat-label">Total Users</div>
+          <div className="admin-stat-value">{totalUsers}</div>
+          <div className="admin-stat-label">Total Users</div>
         </div>
         <div className="stat-card">
-          <div className="stat-value">{withFpl}</div>
-          <div className="stat-label">With FPL Code</div>
+          <div className="admin-stat-value">{withFpl}</div>
+          <div className="admin-stat-label">With FPL Code</div>
         </div>
         <div className="stat-card">
-          <div className="stat-value">{recentWeek}</div>
-          <div className="stat-label">New This Week</div>
+          <div className="admin-stat-value">{recentWeek}</div>
+          <div className="admin-stat-label">New This Week</div>
         </div>
         <div className="stat-card">
-          <div className="stat-value">
+          <div className="admin-stat-value">
             {totalUsers > 0 ? Math.round((withFpl / totalUsers) * 100) : 0}%
           </div>
-          <div className="stat-label">FPL Linked</div>
+          <div className="admin-stat-label">FPL Linked</div>
         </div>
       </div>
 

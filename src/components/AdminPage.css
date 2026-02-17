@@ -25,14 +25,14 @@
   text-align: center;
 }
 
-.stat-value {
+.admin-stat-value {
   font-size: 2rem;
   font-weight: 800;
   color: var(--primary);
   line-height: 1.1;
 }
 
-.stat-label {
+.admin-stat-label {
   font-size: 0.8rem;
   font-weight: 600;
   color: var(--text-secondary);

@@ -55,11 +55,11 @@ const iconMap = {
 };
 
 function Dashboard() {
-  const { user, isAdmin, logout } = useAuth();
+  const { user, fplCode, isAdmin, logout } = useAuth();
   const [activeTab, setActiveTab] = useState("team");
   const [currentView, setCurrentView] = useState("ff");
   const { data: teamData, loading: teamLoading, error: teamError, reload: teamReload } =
-    useApi(fetchMyTeam);
+    useApi(fetchMyTeam, [fplCode]);
 
   const tabs = isAdmin ? [...TABS, ADMIN_TAB] : TABS;
 
