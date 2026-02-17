@@ -1,0 +1,9 @@
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+# SPA fallback – serve index.html for all routes (replaces the 404.html hack)
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

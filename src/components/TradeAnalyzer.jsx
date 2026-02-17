@@ -27,23 +27,40 @@ function PlayerSelector({ label, players, selected, onChange, disabledId }) {
 }
 
 function FixtureComparison({ playerOut, playerIn, gameweeks }) {
+  const outFixtures = playerOut.upcomingFixtures?.slice(0, gameweeks) || [];
   const inFixtures = playerIn.upcomingFixtures?.slice(0, gameweeks) || [];
+
+  // Merge by GW so rows align even if one player has a blank GW
+  const allGws = [...new Set([...outFixtures.map((f) => f.gw), ...inFixtures.map((f) => f.gw)])].sort(
+    (a, b) => a - b
+  );
+  const outByGw = Object.fromEntries(outFixtures.map((f) => [f.gw, f]));
+  const inByGw = Object.fromEntries(inFixtures.map((f) => [f.gw, f]));
+
   return (
     <div className="fixture-comparison">
       <h4>Fixture Comparison</h4>
       <div className="fixture-table">
-        <div className="fixture-row header">
+        <div className="fixture-row header three-col">
+          <span>{playerOut.name}</span>
           <span>GW</span>
           <span>{playerIn.name}</span>
         </div>
-        {inFixtures.map((f) => (
-          <div key={f.gw} className="fixture-row">
-            <span className="fixture-gw">GW{f.gw}</span>
-            <span className={`fixture-badge fdr-${f.difficulty}`}>
-              {f.opponent}
-            </span>
-          </div>
-        ))}
+        {allGws.map((gw) => {
+          const out = outByGw[gw];
+          const inf = inByGw[gw];
+          return (
+            <div key={gw} className="fixture-row three-col">
+              <span className={out ? `fixture-badge fdr-${out.difficulty}` : "fixture-blank"}>
+                {out ? out.opponent : "-"}
+              </span>
+              <span className="fixture-gw">GW{gw}</span>
+              <span className={inf ? `fixture-badge fdr-${inf.difficulty}` : "fixture-blank"}>
+                {inf ? inf.opponent : "-"}
+              </span>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
