@@ -4,22 +4,13 @@ export const MANAGER_ID = 5398119;
 let bootstrapCache = null;
 let fixturesCache = null;
 
-// CORS proxies to try in order (production only – FPL API blocks browser requests)
+// Fallback CORS proxies (used only if the Netlify function is unavailable)
 const CORS_PROXIES = [
   (url) => `https://corsproxy.io/?url=${encodeURIComponent(url)}`,
   (url) => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
   (url) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`,
   (url) => `https://thingproxy.freeboard.io/fetch/${url}`,
 ];
-
-function buildUrl(path, proxyIndex = 0) {
-  const fullUrl = `${FPL_BASE}/${path}`;
-  if (import.meta.env.DEV) {
-    return `/fpl-api/${path}`;
-  }
-  const proxy = CORS_PROXIES[proxyIndex] || CORS_PROXIES[0];
-  return proxy(fullUrl);
-}
 
 async function fetchWithTimeout(url, timeoutMs = 8000) {
   const controller = new AbortController();
@@ -35,14 +26,22 @@ async function fetchWithTimeout(url, timeoutMs = 8000) {
 }
 
 async function fetchJson(path) {
-  // In development, Vite proxy handles CORS
+  // In development, Vite proxy handles CORS — no proxy needed
   if (import.meta.env.DEV) {
-    const res = await fetch(buildUrl(path));
+    const res = await fetch(`/fpl-api/${path}`);
     if (!res.ok) throw new Error(`FPL API error (${res.status})`);
     return res.json();
   }
 
-  // In production, try pre-fetched static data first (for cacheable endpoints)
+  // ── 1. Try our own Netlify serverless proxy (most reliable) ──
+  try {
+    const res = await fetchWithTimeout(`/api/fpl-proxy?path=${encodeURIComponent(path)}`);
+    if (res.ok) return await res.json();
+  } catch {
+    // Netlify function unavailable, continue to fallbacks
+  }
+
+  // ── 2. Try pre-fetched static data (for bootstrap & fixtures) ──
   const staticPaths = {
     "bootstrap-static/": "bootstrap.json",
     "fixtures/": "fixtures.json",
@@ -58,15 +57,16 @@ async function fetchJson(path) {
         }
       }
     } catch {
-      // Static data not available, fall through to proxies
+      // Static data not available, continue
     }
   }
 
-  // Try each CORS proxy until one works
+  // ── 3. Try third-party CORS proxies as last resort ──
+  const fullUrl = `${FPL_BASE}/${path}`;
   let lastError;
   for (let i = 0; i < CORS_PROXIES.length; i++) {
     try {
-      const url = buildUrl(path, i);
+      const url = CORS_PROXIES[i](fullUrl);
       const res = await fetchWithTimeout(url);
       if (!res.ok) throw new Error(`FPL API error (${res.status})`);
       return await res.json();
@@ -74,8 +74,9 @@ async function fetchJson(path) {
       lastError = err;
     }
   }
+
   throw new Error(
-    `Unable to reach the FPL API. All ${CORS_PROXIES.length} proxy servers failed. ` +
+    `Unable to reach the FPL API. All proxy methods failed. ` +
     `Last error: ${lastError?.message || "Unknown"}. ` +
     `Try refreshing or running the app locally with "npm run dev".`
   );
