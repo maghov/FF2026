@@ -26,7 +26,7 @@ function PlayerSelector({ label, players, selected, onChange, disabledId }) {
   );
 }
 
-function FixtureComparison({ playerOut, playerIn, gameweeks }) {
+function FixtureComparison({ playerIn, gameweeks }) {
   const inFixtures = playerIn.upcomingFixtures?.slice(0, gameweeks) || [];
   return (
     <div className="fixture-comparison">
