@@ -5,6 +5,15 @@ import LoadingSpinner from "./LoadingSpinner";
 import ErrorMessage from "./ErrorMessage";
 import "./TradeAnalyzer.css";
 
+const POSITIONS = ["All", "GKP", "DEF", "MID", "FWD"];
+const SORT_OPTIONS = [
+  { value: "form", label: "Form" },
+  { value: "totalPoints", label: "Total Pts" },
+  { value: "price-asc", label: "Price (low)" },
+  { value: "price-desc", label: "Price (high)" },
+  { value: "selectedByPercent", label: "Ownership %" },
+];
+
 function PlayerSelector({ label, players, selected, onChange, disabledId }) {
   return (
     <div className="selector">
@@ -26,11 +35,51 @@ function PlayerSelector({ label, players, selected, onChange, disabledId }) {
   );
 }
 
+function PlayerStatCard({ player, label }) {
+  if (!player) return null;
+  const nextFix = player.upcomingFixtures?.[0];
+  return (
+    <div className="player-stat-card">
+      <div className="stat-card-header">
+        <span className="stat-card-label">{label}</span>
+        <span className={`position-badge position-${player.position}`}>
+          {player.position}
+        </span>
+      </div>
+      <div className="stat-card-name">{player.name}</div>
+      <div className="stat-card-club">{player.club}</div>
+      <div className="stat-card-stats">
+        <div className="stat-card-item">
+          <span className="sc-value">{player.totalPoints}</span>
+          <span className="sc-label">Pts</span>
+        </div>
+        <div className="stat-card-item">
+          <span className="sc-value">{player.form}</span>
+          <span className="sc-label">Form</span>
+        </div>
+        <div className="stat-card-item">
+          <span className="sc-value">£{player.price}m</span>
+          <span className="sc-label">Price</span>
+        </div>
+        <div className="stat-card-item">
+          {nextFix ? (
+            <span className={`sc-value fixture-badge fdr-${nextFix.difficulty}`}>
+              {nextFix.opponent}
+            </span>
+          ) : (
+            <span className="sc-value">-</span>
+          )}
+          <span className="sc-label">Next</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function FixtureComparison({ playerOut, playerIn, gameweeks }) {
   const outFixtures = playerOut.upcomingFixtures?.slice(0, gameweeks) || [];
   const inFixtures = playerIn.upcomingFixtures?.slice(0, gameweeks) || [];
 
-  // Merge by GW so rows align even if one player has a blank GW
   const allGws = [...new Set([...outFixtures.map((f) => f.gw), ...inFixtures.map((f) => f.gw)])].sort(
     (a, b) => a - b
   );
@@ -166,6 +215,9 @@ export default function TradeAnalyzer() {
   const [playerOutId, setPlayerOutId] = useState(null);
   const [playerInId, setPlayerInId] = useState(null);
   const [gameweeks, setGameweeks] = useState(3);
+  const [posFilter, setPosFilter] = useState("All");
+  const [maxPrice, setMaxPrice] = useState("");
+  const [sortBy, setSortBy] = useState("form");
 
   const { data: teamData, loading: tLoading, error: tError, reload: tReload } =
     useApi(fetchMyTeam);
@@ -183,6 +235,41 @@ export default function TradeAnalyzer() {
     [teamData, playerOutId]
   );
 
+  const filteredAvailable = useMemo(() => {
+    if (!available) return [];
+    let list = available;
+
+    if (posFilter !== "All") {
+      list = list.filter((p) => p.position === posFilter);
+    }
+
+    if (maxPrice) {
+      const cap = parseFloat(maxPrice);
+      if (!isNaN(cap)) list = list.filter((p) => p.price <= cap);
+    }
+
+    const sorted = [...list];
+    switch (sortBy) {
+      case "form":
+        sorted.sort((a, b) => b.form - a.form);
+        break;
+      case "totalPoints":
+        sorted.sort((a, b) => b.totalPoints - a.totalPoints);
+        break;
+      case "price-asc":
+        sorted.sort((a, b) => a.price - b.price);
+        break;
+      case "price-desc":
+        sorted.sort((a, b) => b.price - a.price);
+        break;
+      case "selectedByPercent":
+        sorted.sort((a, b) => b.selectedByPercent - a.selectedByPercent);
+        break;
+    }
+
+    return sorted;
+  }, [available, posFilter, maxPrice, sortBy]);
+
   const playerIn = useMemo(
     () => available?.find((p) => p.id === playerInId),
     [available, playerInId]
@@ -192,6 +279,14 @@ export default function TradeAnalyzer() {
     if (!playerOut || !playerIn) return null;
     return analyzeTransfer(playerOut, playerIn, gameweeks);
   }, [playerOut, playerIn, gameweeks]);
+
+  function handlePlayerOutChange(id) {
+    setPlayerOutId(id);
+    if (id && teamData) {
+      const p = teamData.players.find((pl) => pl.id === id);
+      if (p) setPosFilter(p.position);
+    }
+  }
 
   if (loading) return <LoadingSpinner message="Loading trade data..." />;
   if (error) return <ErrorMessage message={error} onRetry={tReload} />;
@@ -205,14 +300,62 @@ export default function TradeAnalyzer() {
             label="Transfer Out"
             players={teamData.players}
             selected={playerOutId}
-            onChange={setPlayerOutId}
+            onChange={handlePlayerOutChange}
           />
+
+          <div className="filter-bar">
+            <div className="filter-group">
+              <label>Position</label>
+              <div className="filter-buttons">
+                {POSITIONS.map((pos) => (
+                  <button
+                    key={pos}
+                    className={`filter-btn ${posFilter === pos ? "active" : ""}`}
+                    onClick={() => setPosFilter(pos)}
+                  >
+                    {pos}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="filter-row">
+              <div className="filter-group filter-group-sm">
+                <label>Max Price</label>
+                <input
+                  type="number"
+                  className="filter-input"
+                  placeholder="e.g. 8.0"
+                  step="0.5"
+                  min="3.5"
+                  max="15"
+                  value={maxPrice}
+                  onChange={(e) => setMaxPrice(e.target.value)}
+                />
+              </div>
+              <div className="filter-group filter-group-sm">
+                <label>Sort By</label>
+                <select
+                  className="filter-select"
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value)}
+                >
+                  {SORT_OPTIONS.map((o) => (
+                    <option key={o.value} value={o.value}>
+                      {o.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </div>
+
           <PlayerSelector
-            label="Transfer In"
-            players={available}
+            label={`Transfer In (${filteredAvailable.length} players)`}
+            players={filteredAvailable}
             selected={playerInId}
             onChange={setPlayerInId}
           />
+
           <div className="gameweeks-selector">
             <label>Gameweeks to Analyze</label>
             <div className="gw-buttons">
@@ -229,29 +372,22 @@ export default function TradeAnalyzer() {
           </div>
         </div>
 
-        {playerOut && playerIn && (
-          <div className="versus-card">
-            <div className="versus-player">
-              <span className={`position-badge position-${playerOut.position}`}>
-                {playerOut.position}
-              </span>
-              <span className="versus-name">{playerOut.name}</span>
-              <span className="versus-detail">
-                {playerOut.club} &middot; £{playerOut.price}m &middot; Form: {playerOut.form}
-              </span>
+        <div className="stat-cards-column">
+          {playerOut || playerIn ? (
+            <>
+              <PlayerStatCard player={playerOut} label="OUT" />
+              {playerOut && playerIn && <div className="versus-icon">vs</div>}
+              <PlayerStatCard player={playerIn} label="IN" />
+            </>
+          ) : (
+            <div className="versus-card">
+              <div className="placeholder-icon">&#8644;</div>
+              <p className="versus-detail">
+                Select players to compare stats
+              </p>
             </div>
-            <div className="versus-icon">vs</div>
-            <div className="versus-player">
-              <span className={`position-badge position-${playerIn.position}`}>
-                {playerIn.position}
-              </span>
-              <span className="versus-name">{playerIn.name}</span>
-              <span className="versus-detail">
-                {playerIn.club} &middot; £{playerIn.price}m &middot; Form: {playerIn.form}
-              </span>
-            </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       {result && (

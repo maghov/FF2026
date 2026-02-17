@@ -262,17 +262,16 @@ export async function fetchAvailablePlayers() {
   const myPlayerIds = new Set(picksData.picks.map((p) => p.element));
   const upcomingByTeam = getUpcomingFixturesByTeam(fixtures, teams, currentGw);
 
-  // Top available players not in the manager's team
+  // All available players not in the manager's squad
   const candidates = bootstrap.elements
     .filter(
       (p) =>
         !myPlayerIds.has(p.id) &&
-        parseFloat(p.form) > 3 &&
         p.minutes > 0 &&
         p.status === "a"
     )
     .sort((a, b) => parseFloat(b.form) - parseFloat(a.form))
-    .slice(0, 25);
+    .slice(0, 150);
 
   return candidates.map((p) => {
     const team = teams[p.team];
@@ -288,6 +287,7 @@ export async function fetchAvailablePlayers() {
       price: p.now_cost / 10,
       totalPoints: p.total_points,
       form,
+      selectedByPercent: parseFloat(p.selected_by_percent) || 0,
       upcomingFixtures: teamFixtures.slice(0, 5),
       expectedPoints: teamFixtures
         .slice(0, 5)
@@ -343,7 +343,7 @@ export async function fetchUpcomingFixtures() {
     getFixtures(),
   ]);
 
-  const { teams, currentEvent } = buildLookups(bootstrap);
+  const { teams, positionMap, currentEvent } = buildLookups(bootstrap);
   const currentGw = currentEvent?.id || 1;
 
   // Group future fixtures by gameweek (next 5 GWs)
@@ -355,6 +355,63 @@ export async function fetchUpcomingFixtures() {
   const gwDeadlines = {};
   for (const e of bootstrap.events) {
     gwDeadlines[e.id] = e.deadline_time;
+  }
+
+  // Build fixture difficulty lookup per team per GW
+  const teamGwDifficulty = {};
+  for (const f of upcoming) {
+    if (!teamGwDifficulty[f.team_h]) teamGwDifficulty[f.team_h] = {};
+    teamGwDifficulty[f.team_h][f.event] = {
+      difficulty: f.team_h_difficulty,
+      opponent: `${teams[f.team_a]?.short_name || "?"} (H)`,
+    };
+    if (!teamGwDifficulty[f.team_a]) teamGwDifficulty[f.team_a] = {};
+    teamGwDifficulty[f.team_a][f.event] = {
+      difficulty: f.team_a_difficulty,
+      opponent: `${teams[f.team_h]?.short_name || "?"} (A)`,
+    };
+  }
+
+  // Score and rank players for each GW based on form + fixture easiness
+  const activePlayers = bootstrap.elements.filter(
+    (p) => p.minutes > 0 && p.status === "a" && parseFloat(p.form) > 0
+  );
+
+  function getPicksForGw(gwId) {
+    const scored = activePlayers
+      .filter((p) => teamGwDifficulty[p.team]?.[gwId])
+      .map((p) => {
+        const fix = teamGwDifficulty[p.team][gwId];
+        const form = parseFloat(p.form) || 0;
+        // Score = form bonus + fixture easiness (lower difficulty = better)
+        const score = form + (3 - fix.difficulty) * 1.2;
+        return {
+          id: p.id,
+          name: p.web_name,
+          position: positionMap[p.element_type],
+          club: teams[p.team]?.short_name || "???",
+          price: p.now_cost / 10,
+          form,
+          totalPoints: p.total_points,
+          opponent: fix.opponent,
+          difficulty: fix.difficulty,
+          score,
+        };
+      })
+      .sort((a, b) => b.score - a.score);
+
+    // Pick top 2 per position to give varied suggestions
+    const picks = [];
+    const posCounts = {};
+    for (const p of scored) {
+      const count = posCounts[p.position] || 0;
+      if (count < 2) {
+        picks.push(p);
+        posCounts[p.position] = count + 1;
+      }
+      if (picks.length >= 8) break;
+    }
+    return picks;
   }
 
   return gwIds.map((gwId) => ({
@@ -372,6 +429,7 @@ export async function fetchUpcomingFixtures() {
         homeDifficulty: f.team_h_difficulty,
         awayDifficulty: f.team_a_difficulty,
       })),
+    picks: getPicksForGw(gwId),
   }));
 }
 

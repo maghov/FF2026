@@ -52,6 +52,56 @@ function MatchRow({ match }) {
   );
 }
 
+function PickCard({ pick }) {
+  return (
+    <div className="pick-card">
+      <div className="pick-top">
+        <span className={`pick-pos position-badge position-${pick.position}`}>
+          {pick.position}
+        </span>
+        <span className="pick-price">£{pick.price}m</span>
+      </div>
+      <div className="pick-name">{pick.name}</div>
+      <div className="pick-club">{pick.club}</div>
+      <div className="pick-details">
+        <div className="pick-stat">
+          <span className="pick-stat-value">{pick.form}</span>
+          <span className="pick-stat-label">Form</span>
+        </div>
+        <div className="pick-stat">
+          <span className="pick-stat-value">{pick.totalPoints}</span>
+          <span className="pick-stat-label">Pts</span>
+        </div>
+        <div className="pick-stat">
+          <span className={`pick-stat-value fixture-badge fdr-${pick.difficulty}`}>
+            {pick.opponent}
+          </span>
+          <span className="pick-stat-label">Fix</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function RecommendedPicks({ picks }) {
+  if (!picks || picks.length === 0) return null;
+  return (
+    <div className="picks-section">
+      <div className="picks-header">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+        </svg>
+        <span>Recommended Picks</span>
+      </div>
+      <div className="picks-grid">
+        {picks.map((p) => (
+          <PickCard key={p.id} pick={p} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function GameweekCard({ gw, isActive, onToggle }) {
   return (
     <div className={`gw-card ${isActive ? "expanded" : ""}`}>
@@ -85,11 +135,14 @@ function GameweekCard({ gw, isActive, onToggle }) {
         </div>
       </button>
       {isActive && (
-        <div className="gw-matches">
-          {gw.matches.map((m) => (
-            <MatchRow key={m.id} match={m} />
-          ))}
-        </div>
+        <>
+          <div className="gw-matches">
+            {gw.matches.map((m) => (
+              <MatchRow key={m.id} match={m} />
+            ))}
+          </div>
+          <RecommendedPicks picks={gw.picks} />
+        </>
       )}
     </div>
   );
