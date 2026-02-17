@@ -1,6 +1,4 @@
 import { useState } from "react";
-import { useApi } from "../hooks/useApi";
-import { fetchMyTeam } from "../services/api";
 import LoadingSpinner from "./LoadingSpinner";
 import ErrorMessage from "./ErrorMessage";
 import "./Formation.css";
@@ -94,14 +92,13 @@ function PlayerDetail({ player, onClose }) {
   );
 }
 
-export default function Formation() {
-  const { data, loading, error, reload } = useApi(fetchMyTeam);
+export default function Formation({ teamData, teamLoading, teamError, teamReload }) {
   const [selectedPlayer, setSelectedPlayer] = useState(null);
 
-  if (loading) return <LoadingSpinner message="Loading formation..." />;
-  if (error) return <ErrorMessage message={error} onRetry={reload} />;
+  if (teamLoading) return <LoadingSpinner message="Loading formation..." />;
+  if (teamError) return <ErrorMessage message={teamError} onRetry={teamReload} />;
 
-  const { players, summary } = data;
+  const { players, summary } = teamData;
   const formation = detectFormation(players);
   const groups = groupByPosition(players);
 

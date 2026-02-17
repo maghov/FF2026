@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { useApi } from "../hooks/useApi";
-import { fetchMyTeam, fetchAvailablePlayers, analyzeTransfer } from "../services/api";
+import { fetchAvailablePlayers, analyzeTransfer } from "../services/api";
 import LoadingSpinner from "./LoadingSpinner";
 import ErrorMessage from "./ErrorMessage";
 import "./TradeAnalyzer.css";
@@ -211,7 +211,7 @@ function TradeResult({ result, playerOut, playerIn }) {
   );
 }
 
-export default function TradeAnalyzer() {
+export default function TradeAnalyzer({ teamData, teamLoading, teamError, teamReload }) {
   const [playerOutId, setPlayerOutId] = useState(null);
   const [playerInId, setPlayerInId] = useState(null);
   const [gameweeks, setGameweeks] = useState(3);
@@ -219,16 +219,14 @@ export default function TradeAnalyzer() {
   const [maxPrice, setMaxPrice] = useState("");
   const [sortBy, setSortBy] = useState("form");
 
-  const { data: teamData, loading: tLoading, error: tError, reload: tReload } =
-    useApi(fetchMyTeam);
   const {
     data: available,
     loading: aLoading,
     error: aError,
   } = useApi(fetchAvailablePlayers);
 
-  const loading = tLoading || aLoading;
-  const error = tError || aError;
+  const loading = teamLoading || aLoading;
+  const error = teamError || aError;
 
   const playerOut = useMemo(
     () => teamData?.players.find((p) => p.id === playerOutId),
@@ -289,7 +287,7 @@ export default function TradeAnalyzer() {
   }
 
   if (loading) return <LoadingSpinner message="Loading trade data..." />;
-  if (error) return <ErrorMessage message={error} onRetry={tReload} />;
+  if (error) return <ErrorMessage message={error} onRetry={teamReload} />;
 
   return (
     <div className="trade-analyzer">

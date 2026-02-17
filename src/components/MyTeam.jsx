@@ -1,6 +1,4 @@
 import { useState } from "react";
-import { useApi } from "../hooks/useApi";
-import { fetchMyTeam } from "../services/api";
 import LoadingSpinner from "./LoadingSpinner";
 import ErrorMessage from "./ErrorMessage";
 import "./MyTeam.css";
@@ -157,14 +155,13 @@ function TeamSummaryCard({ summary }) {
   );
 }
 
-export default function MyTeam() {
-  const { data, loading, error, reload } = useApi(fetchMyTeam);
+export default function MyTeam({ teamData, teamLoading, teamError, teamReload }) {
   const [expandedId, setExpandedId] = useState(null);
 
-  if (loading) return <LoadingSpinner message="Loading your team..." />;
-  if (error) return <ErrorMessage message={error} onRetry={reload} />;
+  if (teamLoading) return <LoadingSpinner message="Loading your team..." />;
+  if (teamError) return <ErrorMessage message={teamError} onRetry={teamReload} />;
 
-  const { players, summary } = data;
+  const { players, summary } = teamData;
   const sorted = [...players].sort(
     (a, b) => positionOrder[a.position] - positionOrder[b.position]
   );
