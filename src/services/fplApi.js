@@ -4,20 +4,42 @@ export const MANAGER_ID = 5398119;
 let bootstrapCache = null;
 let fixturesCache = null;
 
-function buildUrl(path) {
+// CORS proxies to try in order (production only – FPL API blocks browser requests)
+const CORS_PROXIES = [
+  (url) => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+  (url) => `https://corsproxy.io/?url=${encodeURIComponent(url)}`,
+];
+
+function buildUrl(path, proxyIndex = 0) {
+  const fullUrl = `${FPL_BASE}/${path}`;
   if (import.meta.env.DEV) {
     return `/fpl-api/${path}`;
   }
-  return `https://corsproxy.io/?url=${encodeURIComponent(`${FPL_BASE}/${path}`)}`;
+  const proxy = CORS_PROXIES[proxyIndex] || CORS_PROXIES[0];
+  return proxy(fullUrl);
 }
 
 async function fetchJson(path) {
-  const url = buildUrl(path);
-  const res = await fetch(url);
-  if (!res.ok) {
-    throw new Error(`FPL API error (${res.status})`);
+  // In development, Vite proxy handles CORS
+  if (import.meta.env.DEV) {
+    const res = await fetch(buildUrl(path));
+    if (!res.ok) throw new Error(`FPL API error (${res.status})`);
+    return res.json();
   }
-  return res.json();
+
+  // In production, try each CORS proxy until one works
+  let lastError;
+  for (let i = 0; i < CORS_PROXIES.length; i++) {
+    try {
+      const url = buildUrl(path, i);
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`FPL API error (${res.status})`);
+      return await res.json();
+    } catch (err) {
+      lastError = err;
+    }
+  }
+  throw lastError;
 }
 
 export async function getBootstrap() {
