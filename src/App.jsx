@@ -1,15 +1,17 @@
 import { useState } from "react";
+import { useApi } from "./hooks/useApi";
+import { fetchMyTeam } from "./services/api";
 import MyTeam from "./components/MyTeam";
 import PointsPerformance from "./components/PointsPerformance";
 import TradeAnalyzer from "./components/TradeAnalyzer";
 import Fixtures from "./components/Fixtures";
-import AdminPage from "./components/AdminPage";
-import LoginPage from "./components/auth/LoginPage";
-import { AuthProvider, useAuth } from "./context/AuthContext";
+import Formation from "./components/Formation";
+import UserPortal from "./components/portal/UserPortal";
 import "./App.css";
 
 const TABS = [
   { id: "team", label: "My Team", icon: "shield" },
+  { id: "formation", label: "Formation", icon: "formation" },
   { id: "points", label: "Points", icon: "chart" },
   { id: "trade", label: "Trade Analyzer", icon: "swap" },
   { id: "fixtures", label: "Fixtures", icon: "calendar" },
@@ -38,9 +40,9 @@ const iconMap = {
       <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
     </svg>
   ),
-  admin: (
+  formation: (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M12 15c-3.87 0-7 1.57-7 3.5V21h14v-2.5c0-1.93-3.13-3.5-7-3.5z"/><circle cx="12" cy="8" r="4"/><path d="M19 8l1.5 1.5L22 8"/>
+      <rect x="2" y="2" width="20" height="20" rx="2"/><circle cx="12" cy="5" r="1.5" fill="currentColor"/><circle cx="7" cy="10" r="1.5" fill="currentColor"/><circle cx="17" cy="10" r="1.5" fill="currentColor"/><circle cx="8" cy="16" r="1.5" fill="currentColor"/><circle cx="16" cy="16" r="1.5" fill="currentColor"/><circle cx="12" cy="21" r="1.5" fill="currentColor"/>
     </svg>
   ),
 };
@@ -48,6 +50,9 @@ const iconMap = {
 function Dashboard() {
   const { user, isAdmin, logout } = useAuth();
   const [activeTab, setActiveTab] = useState("team");
+  const [currentView, setCurrentView] = useState("ff");
+  const { data: teamData, loading: teamLoading, error: teamError, reload: teamReload } =
+    useApi(fetchMyTeam);
 
   const tabs = isAdmin ? [...TABS, ADMIN_TAB] : TABS;
 
@@ -84,12 +89,15 @@ function Dashboard() {
       </header>
 
       <main className="app-main">
-        {activeTab === "team" && <MyTeam />}
-        {activeTab === "points" && <PointsPerformance />}
-        {activeTab === "trade" && <TradeAnalyzer />}
+        {activeTab === "team" && <MyTeam teamData={teamData} teamLoading={teamLoading} teamError={teamError} teamReload={teamReload} />}
+        {activeTab === "formation" && <Formation teamData={teamData} teamLoading={teamLoading} teamError={teamError} teamReload={teamReload} />}
+        {activeTab === "points" && <PointsPerformance teamData={teamData} teamLoading={teamLoading} teamError={teamError} teamReload={teamReload} />}
+        {activeTab === "trade" && <TradeAnalyzer teamData={teamData} teamLoading={teamLoading} teamError={teamError} teamReload={teamReload} />}
         {activeTab === "fixtures" && <Fixtures />}
         {activeTab === "admin" && isAdmin && <AdminPage />}
       </main>
+
+      <div className="version-label">v0.01</div>
     </div>
   );
 }

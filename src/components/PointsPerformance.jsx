@@ -2,7 +2,6 @@ import { useApi } from "../hooks/useApi";
 import {
   fetchGameweekHistory,
   fetchProjectedPoints,
-  fetchMyTeam,
   fetchLeagueData,
 } from "../services/api";
 import LoadingSpinner from "./LoadingSpinner";
@@ -85,7 +84,7 @@ function LeagueStandings({ league }) {
   );
 }
 
-export default function PointsPerformance() {
+export default function PointsPerformance({ teamData, teamLoading, teamError, teamReload }) {
   const {
     data: history,
     loading: histLoading,
@@ -98,12 +97,6 @@ export default function PointsPerformance() {
     loading: projLoading,
     error: projError,
   } = useApi(fetchProjectedPoints);
-
-  const {
-    data: teamData,
-    loading: teamLoading,
-    error: teamError,
-  } = useApi(fetchMyTeam);
 
   const {
     data: league,
