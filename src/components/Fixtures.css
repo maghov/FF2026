@@ -1,0 +1,211 @@
+.fixtures {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.fixtures-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.fixtures-header h3 {
+  font-size: 1.1rem;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.fdr-legend {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.legend-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-right: 0.25rem;
+}
+
+.fdr-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.fdr-1 { background: #00ff87; color: #1a1a2e; }
+.fdr-2 { background: #00e676; color: #1a1a2e; }
+.fdr-3 { background: #ffd600; color: #1a1a2e; }
+.fdr-4 { background: #ff6d00; color: white; }
+.fdr-5 { background: #d50000; color: white; }
+
+/* Gameweek cards */
+.gw-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.gw-card {
+  background: var(--card-bg);
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  overflow: hidden;
+  transition: box-shadow 0.2s;
+}
+
+.gw-card.expanded {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.gw-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 1rem 1.25rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-primary);
+  font-family: inherit;
+  text-align: left;
+}
+
+.gw-card-header:hover {
+  background: var(--primary-bg);
+}
+
+.gw-title {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.gw-number {
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: var(--primary);
+}
+
+.gw-match-count {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.gw-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.gw-deadline {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.gw-chevron {
+  display: flex;
+  align-items: center;
+  color: var(--text-secondary);
+  transition: transform 0.2s;
+}
+
+.gw-chevron.open {
+  transform: rotate(180deg);
+}
+
+/* Matches */
+.gw-matches {
+  border-top: 1px solid var(--border);
+}
+
+.match-row {
+  display: grid;
+  grid-template-columns: 1fr 30px 1fr auto;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.25rem;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.85rem;
+}
+
+.match-row:last-child {
+  border-bottom: none;
+}
+
+.match-team {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.match-team.home {
+  justify-content: flex-end;
+  text-align: right;
+}
+
+.match-team.away {
+  justify-content: flex-start;
+}
+
+.team-short {
+  display: none;
+}
+
+.team-full {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.match-vs {
+  text-align: center;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+}
+
+.match-kickoff {
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  padding-left: 0.5rem;
+  border-left: 1px solid var(--border);
+}
+
+@media (max-width: 640px) {
+  .match-row {
+    grid-template-columns: 1fr 24px 1fr;
+    padding: 0.6rem 0.75rem;
+  }
+
+  .match-kickoff {
+    display: none;
+  }
+
+  .team-full {
+    display: none;
+  }
+
+  .team-short {
+    display: inline;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+
+  .gw-deadline {
+    display: none;
+  }
+}
