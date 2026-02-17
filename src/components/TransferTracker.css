@@ -32,10 +32,48 @@
   margin: 0;
 }
 
+/* New transfer notification banner */
+.new-transfer-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: rgba(99, 102, 241, 0.1);
+  border: 1px solid rgba(99, 102, 241, 0.25);
+  border-radius: 10px;
+  padding: 0.7rem 1rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--primary);
+  animation: slideDown 0.3s ease;
+}
+
+.new-transfer-dismiss {
+  margin-left: auto;
+  background: none;
+  border: none;
+  color: var(--primary);
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  opacity: 0.7;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+}
+
+.new-transfer-dismiss:hover {
+  opacity: 1;
+  background: rgba(99, 102, 241, 0.1);
+}
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 /* Stats */
 .transfer-stats {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
   gap: 0.75rem;
 }
 
@@ -61,6 +99,16 @@
   color: #ef4444;
 }
 
+.clickable-stat {
+  cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+
+.clickable-stat:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
 /* Transfer cost banner */
 .transfer-cost-banner {
   background: rgba(239, 68, 68, 0.08);
@@ -70,6 +118,157 @@
   font-size: 0.8rem;
   color: #ef4444;
   text-align: center;
+}
+
+/* Cumulative chart */
+.cumulative-section {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1.25rem;
+}
+
+.section-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0 0 1rem;
+}
+
+.cumulative-chart {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  height: 180px;
+  position: relative;
+  overflow-x: auto;
+  padding: 0.5rem 0;
+}
+
+.chart-zero-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 1px;
+  background: var(--border);
+  z-index: 0;
+}
+
+.chart-bar-group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+  min-width: 36px;
+  height: 100%;
+  position: relative;
+  z-index: 1;
+}
+
+.chart-bar-area {
+  flex: 1;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.chart-bar-top {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  height: 50%;
+  width: 100%;
+}
+
+.chart-bar-bottom {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  height: 50%;
+  width: 100%;
+}
+
+.chart-bar {
+  width: 70%;
+  max-width: 32px;
+  border-radius: 4px;
+  min-height: 2px;
+  transition: height 0.4s ease;
+}
+
+.bar-positive {
+  background: linear-gradient(180deg, #22c55e, #16a34a);
+}
+
+.bar-negative {
+  background: linear-gradient(180deg, #ef4444, #dc2626);
+}
+
+.chart-bar-val {
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  padding: 2px 0;
+}
+
+.chart-bar-label {
+  font-size: 0.6rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  padding-top: 0.2rem;
+}
+
+/* Position filter */
+.transfer-filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.filter-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-right: 0.25rem;
+}
+
+.filter-btn {
+  padding: 0.3rem 0.7rem;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--card-bg);
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.filter-btn:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.filter-active {
+  background: var(--primary);
+  color: white;
+  border-color: var(--primary);
+}
+
+.filter-active:hover {
+  color: white;
+}
+
+.filter-count {
+  margin-left: auto;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
 }
 
 /* Transfer list */
@@ -86,8 +285,9 @@
   border-radius: 12px;
   padding: 1rem;
   cursor: pointer;
-  transition: box-shadow 0.2s, border-color 0.2s;
+  transition: box-shadow 0.2s, border-color 0.2s, background 0.3s;
   border-left: 4px solid var(--border);
+  position: relative;
 }
 
 .transfer-card:hover {
@@ -100,6 +300,40 @@
 
 .transfer-negative {
   border-left-color: #ef4444;
+}
+
+/* New transfer indicator */
+.transfer-new {
+  animation: fadeInCard 0.4s ease;
+}
+
+.new-badge {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  font-size: 0.55rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: white;
+  background: var(--primary);
+  padding: 0.15rem 0.45rem;
+  border-radius: 4px;
+}
+
+@keyframes fadeInCard {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Highlight animation for scroll-to */
+.transfer-highlight {
+  animation: highlightPulse 2s ease;
+}
+
+@keyframes highlightPulse {
+  0% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.4); }
+  30% { box-shadow: 0 0 0 6px rgba(99, 102, 241, 0.2); }
+  100% { box-shadow: none; }
 }
 
 /* Card header */
@@ -312,5 +546,13 @@
   .breakdown-row {
     grid-template-columns: 32px 1fr 1fr 44px;
     font-size: 0.72rem;
+  }
+
+  .cumulative-chart {
+    height: 140px;
+  }
+
+  .chart-bar-group {
+    min-width: 28px;
   }
 }
