@@ -6,7 +6,7 @@ import {
   getFixtures,
   getLiveGameweek,
   getLeagueStandings,
-  MANAGER_ID,
+  getManagerId,
 } from "./fplApi";
 
 /* ── helpers ──────────────────────────────────────────────── */
@@ -329,7 +329,7 @@ export async function fetchLeagueData() {
     standings: data.standings.results.slice(0, 10).map((entry, i) => ({
       rank: entry.rank || i + 1,
       name: entry.entry_name,
-      manager: entry.entry === MANAGER_ID ? "You" : entry.player_name,
+      manager: entry.entry === getManagerId() ? "You" : entry.player_name,
       points: entry.total,
     })),
   };

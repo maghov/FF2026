@@ -17,6 +17,8 @@ const TABS = [
   { id: "fixtures", label: "Fixtures", icon: "calendar" },
 ];
 
+const ADMIN_TAB = { id: "admin", label: "Admin", icon: "admin" };
+
 const iconMap = {
   shield: (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -45,15 +47,14 @@ const iconMap = {
   ),
 };
 
-export default function App() {
+function Dashboard() {
+  const { user, isAdmin, logout } = useAuth();
   const [activeTab, setActiveTab] = useState("team");
   const [currentView, setCurrentView] = useState("ff");
   const { data: teamData, loading: teamLoading, error: teamError, reload: teamReload } =
     useApi(fetchMyTeam);
 
-  if (currentView === "portal") {
-    return <UserPortal onBack={() => setCurrentView("ff")} />;
-  }
+  const tabs = isAdmin ? [...TABS, ADMIN_TAB] : TABS;
 
   return (
     <div className="app">
@@ -67,7 +68,7 @@ export default function App() {
             </div>
           </div>
           <nav className="nav-tabs">
-            {TABS.map((tab) => (
+            {tabs.map((tab) => (
               <button
                 key={tab.id}
                 className={`nav-tab ${activeTab === tab.id ? "active" : ""}`}
@@ -78,12 +79,12 @@ export default function App() {
               </button>
             ))}
           </nav>
-          <button
-            className="btn btn-primary"
-            onClick={() => setCurrentView("portal")}
-          >
-            User Portal
-          </button>
+          <div className="user-info">
+            <span className="user-name">{user.displayName}</span>
+            <button className="btn btn-secondary" onClick={logout}>
+              Logout
+            </button>
+          </div>
         </div>
       </header>
 
@@ -93,9 +94,32 @@ export default function App() {
         {activeTab === "points" && <PointsPerformance teamData={teamData} teamLoading={teamLoading} teamError={teamError} teamReload={teamReload} />}
         {activeTab === "trade" && <TradeAnalyzer teamData={teamData} teamLoading={teamLoading} teamError={teamError} teamReload={teamReload} />}
         {activeTab === "fixtures" && <Fixtures />}
+        {activeTab === "admin" && isAdmin && <AdminPage />}
       </main>
 
       <div className="version-label">v0.01</div>
     </div>
+  );
+}
+
+function AppContent() {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="app-loading">
+        <div className="loading-spinner" />
+      </div>
+    );
+  }
+
+  return user ? <Dashboard /> : <LoginPage />;
+}
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
   );
 }
