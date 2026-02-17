@@ -100,6 +100,16 @@
   padding: 1.5rem;
 }
 
+/* Version Label */
+.version-label {
+  position: fixed;
+  bottom: 0.75rem;
+  left: 0.75rem;
+  font-size: 0.65rem;
+  color: var(--text-secondary);
+  opacity: 0.5;
+}
+
 /* Mobile */
 @media (max-width: 768px) {
   .header-content {

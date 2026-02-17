@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { useApi } from "./hooks/useApi";
+import { fetchMyTeam } from "./services/api";
 import MyTeam from "./components/MyTeam";
 import PointsPerformance from "./components/PointsPerformance";
 import TradeAnalyzer from "./components/TradeAnalyzer";
@@ -46,6 +48,8 @@ const iconMap = {
 export default function App() {
   const [activeTab, setActiveTab] = useState("team");
   const [currentView, setCurrentView] = useState("ff");
+  const { data: teamData, loading: teamLoading, error: teamError, reload: teamReload } =
+    useApi(fetchMyTeam);
 
   if (currentView === "portal") {
     return <UserPortal onBack={() => setCurrentView("ff")} />;
@@ -84,12 +88,14 @@ export default function App() {
       </header>
 
       <main className="app-main">
-        {activeTab === "team" && <MyTeam />}
-        {activeTab === "formation" && <Formation />}
-        {activeTab === "points" && <PointsPerformance />}
-        {activeTab === "trade" && <TradeAnalyzer />}
+        {activeTab === "team" && <MyTeam teamData={teamData} teamLoading={teamLoading} teamError={teamError} teamReload={teamReload} />}
+        {activeTab === "formation" && <Formation teamData={teamData} teamLoading={teamLoading} teamError={teamError} teamReload={teamReload} />}
+        {activeTab === "points" && <PointsPerformance teamData={teamData} teamLoading={teamLoading} teamError={teamError} teamReload={teamReload} />}
+        {activeTab === "trade" && <TradeAnalyzer teamData={teamData} teamLoading={teamLoading} teamError={teamError} teamReload={teamReload} />}
         {activeTab === "fixtures" && <Fixtures />}
       </main>
+
+      <div className="version-label">v0.01</div>
     </div>
   );
 }
