@@ -121,6 +121,8 @@
   transition: transform 0.2s, box-shadow 0.2s;
   cursor: pointer;
   user-select: none;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .player-card:hover {
