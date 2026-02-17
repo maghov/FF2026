@@ -2,6 +2,7 @@ import { useState } from "react";
 import MyTeam from "./components/MyTeam";
 import PointsPerformance from "./components/PointsPerformance";
 import TradeAnalyzer from "./components/TradeAnalyzer";
+import UserPortal from "./components/portal/UserPortal";
 import "./App.css";
 
 const TABS = [
@@ -30,6 +31,11 @@ const iconMap = {
 
 export default function App() {
   const [activeTab, setActiveTab] = useState("team");
+  const [currentView, setCurrentView] = useState("ff");
+
+  if (currentView === "portal") {
+    return <UserPortal onBack={() => setCurrentView("ff")} />;
+  }
 
   return (
     <div className="app">
@@ -54,6 +60,12 @@ export default function App() {
               </button>
             ))}
           </nav>
+          <button
+            className="btn btn-primary"
+            onClick={() => setCurrentView("portal")}
+          >
+            User Portal
+          </button>
         </div>
       </header>
 
