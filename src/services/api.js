@@ -551,7 +551,25 @@ export async function fetchTransferHistory() {
 
   // Now calculate points for each transfer from the transfer GW onwards
   const currentGw = Math.max(...allGwIds);
+
+  // Collect all unique GWs we need, then batch-fetch them
+  const gwsNeeded = new Set();
+  for (const t of transfers) {
+    for (let gw = t.gameweek; gw <= currentGw; gw++) {
+      gwsNeeded.add(gw);
+    }
+  }
   const liveCache = {};
+  const gwBatch = [...gwsNeeded].sort((a, b) => a - b);
+  for (let i = 0; i < gwBatch.length; i += batchSize) {
+    const batch = gwBatch.slice(i, i + batchSize);
+    const results = await Promise.all(
+      batch.map((gw) => getLiveGameweek(gw).catch(() => null))
+    );
+    batch.forEach((gw, idx) => {
+      liveCache[gw] = results[idx];
+    });
+  }
 
   for (const t of transfers) {
     let inPoints = 0;
@@ -559,9 +577,6 @@ export async function fetchTransferHistory() {
     const gwBreakdown = [];
 
     for (let gw = t.gameweek; gw <= currentGw; gw++) {
-      if (!liveCache[gw]) {
-        liveCache[gw] = await getLiveGameweek(gw).catch(() => null);
-      }
       const live = liveCache[gw];
       if (!live) continue;
 
