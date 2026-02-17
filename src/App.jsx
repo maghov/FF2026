@@ -3,6 +3,7 @@ import MyTeam from "./components/MyTeam";
 import PointsPerformance from "./components/PointsPerformance";
 import TradeAnalyzer from "./components/TradeAnalyzer";
 import Fixtures from "./components/Fixtures";
+import AdminPage from "./components/AdminPage";
 import LoginPage from "./components/auth/LoginPage";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import "./App.css";
@@ -13,6 +14,8 @@ const TABS = [
   { id: "trade", label: "Trade Analyzer", icon: "swap" },
   { id: "fixtures", label: "Fixtures", icon: "calendar" },
 ];
+
+const ADMIN_TAB = { id: "admin", label: "Admin", icon: "admin" };
 
 const iconMap = {
   shield: (
@@ -35,11 +38,18 @@ const iconMap = {
       <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
     </svg>
   ),
+  admin: (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 15c-3.87 0-7 1.57-7 3.5V21h14v-2.5c0-1.93-3.13-3.5-7-3.5z"/><circle cx="12" cy="8" r="4"/><path d="M19 8l1.5 1.5L22 8"/>
+    </svg>
+  ),
 };
 
 function Dashboard() {
-  const { user, logout } = useAuth();
+  const { user, isAdmin, logout } = useAuth();
   const [activeTab, setActiveTab] = useState("team");
+
+  const tabs = isAdmin ? [...TABS, ADMIN_TAB] : TABS;
 
   return (
     <div className="app">
@@ -53,7 +63,7 @@ function Dashboard() {
             </div>
           </div>
           <nav className="nav-tabs">
-            {TABS.map((tab) => (
+            {tabs.map((tab) => (
               <button
                 key={tab.id}
                 className={`nav-tab ${activeTab === tab.id ? "active" : ""}`}
@@ -78,6 +88,7 @@ function Dashboard() {
         {activeTab === "points" && <PointsPerformance />}
         {activeTab === "trade" && <TradeAnalyzer />}
         {activeTab === "fixtures" && <Fixtures />}
+        {activeTab === "admin" && isAdmin && <AdminPage />}
       </main>
     </div>
   );
