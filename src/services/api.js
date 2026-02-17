@@ -8,6 +8,7 @@ import {
   getLeagueStandings,
   getManagerId,
 } from "./fplApi";
+import { calculateMultiGwXpts } from "./xpts";
 
 /* ── helpers ──────────────────────────────────────────────── */
 
@@ -106,36 +107,50 @@ export async function fetchMyTeam() {
   // Upcoming fixtures
   const upcomingByTeam = getUpcomingFixturesByTeam(fixtures, teams, currentGw);
 
+  // Map a pick to a player object
+  function mapPick(pick) {
+    const p = allPlayers[pick.element];
+    const team = teams[p.team];
+    const teamFixtures = upcomingByTeam[p.team] || [];
+    const nextFix = teamFixtures[0];
+    const form = parseFloat(p.form) || 0;
+
+    return {
+      id: p.id,
+      name: p.web_name,
+      position: positionMap[p.element_type],
+      club: team?.name || "Unknown",
+      clubShort: team?.short_name || "???",
+      teamId: p.team,
+      price: p.now_cost / 10,
+      totalPoints: p.total_points,
+      gameweekPoints: livePoints[p.id] ?? p.event_points ?? 0,
+      form,
+      upcomingFixtures: teamFixtures.slice(0, 5),
+      upcomingFixture: nextFix ? nextFix.opponent : "TBD",
+      fixtureDifficulty: nextFix ? nextFix.difficulty : 3,
+      isCaptain: pick.is_captain,
+      isViceCaptain: pick.is_vice_captain,
+      benchOrder: pick.position > 11 ? pick.position - 11 : 0,
+      // xPts engine fields
+      ictIndex: parseFloat(p.ict_index) || 0,
+      pointsPerGame: parseFloat(p.points_per_game) || 0,
+      chanceOfPlaying: p.chance_of_playing_next_round,
+      bonus: p.bonus || 0,
+      minutes: p.minutes || 0,
+    };
+  }
+
   // Starting XI (positions 1-11)
   const players = picksData.picks
     .filter((pick) => pick.position <= 11)
-    .map((pick) => {
-      const p = allPlayers[pick.element];
-      const team = teams[p.team];
-      const teamFixtures = upcomingByTeam[p.team] || [];
-      const nextFix = teamFixtures[0];
-      const form = parseFloat(p.form) || 0;
+    .map(mapPick);
 
-      return {
-        id: p.id,
-        name: p.web_name,
-        position: positionMap[p.element_type],
-        club: team?.name || "Unknown",
-        clubShort: team?.short_name || "???",
-        price: p.now_cost / 10,
-        totalPoints: p.total_points,
-        gameweekPoints: livePoints[p.id] ?? p.event_points ?? 0,
-        form,
-        upcomingFixtures: teamFixtures.slice(0, 5),
-        upcomingFixture: nextFix ? nextFix.opponent : "TBD",
-        fixtureDifficulty: nextFix ? nextFix.difficulty : 3,
-        isCaptain: pick.is_captain,
-        isViceCaptain: pick.is_vice_captain,
-        pointsHistory: Array.from({ length: 5 }, () =>
-          Math.max(1, Math.round(form + (Math.random() - 0.5) * 4))
-        ),
-      };
-    });
+  // Bench (positions 12-15)
+  const bench = picksData.picks
+    .filter((pick) => pick.position > 11)
+    .sort((a, b) => a.position - b.position)
+    .map(mapPick);
 
   // Captain bonus (base pts × multiplier = total captain contribution)
   const captainPick = picksData.picks.find((p) => p.is_captain);
@@ -173,7 +188,7 @@ export async function fetchMyTeam() {
     },
   };
 
-  return { players, summary };
+  return { players, bench, summary, teams };
 }
 
 /* ── fetchGameweekHistory ─────────────────────────────────── */
@@ -273,7 +288,7 @@ export async function fetchAvailablePlayers() {
     .sort((a, b) => parseFloat(b.form) - parseFloat(a.form))
     .slice(0, 150);
 
-  return candidates.map((p) => {
+  const mapped = candidates.map((p) => {
     const team = teams[p.team];
     const form = parseFloat(p.form) || 0;
     const teamFixtures = upcomingByTeam[p.team] || [];
@@ -284,6 +299,7 @@ export async function fetchAvailablePlayers() {
       position: positionMap[p.element_type],
       club: team?.name || "Unknown",
       clubShort: team?.short_name || "???",
+      teamId: p.team,
       price: p.now_cost / 10,
       totalPoints: p.total_points,
       form,
@@ -292,8 +308,16 @@ export async function fetchAvailablePlayers() {
       expectedPoints: teamFixtures
         .slice(0, 5)
         .map((f) => Math.max(1, Math.round(form + (3 - f.difficulty) * 0.8))),
+      // xPts engine fields
+      ictIndex: parseFloat(p.ict_index) || 0,
+      pointsPerGame: parseFloat(p.points_per_game) || 0,
+      chanceOfPlaying: p.chance_of_playing_next_round,
+      bonus: p.bonus || 0,
+      minutes: p.minutes || 0,
     };
   });
+
+  return { candidates: mapped, teams };
 }
 
 /* ── fetchLeagueData ──────────────────────────────────────── */
@@ -436,15 +460,20 @@ export async function fetchUpcomingFixtures() {
 /* ── fetchTransferHistory ─────────────────────────────────── */
 
 export async function fetchTransferHistory() {
-  const [bootstrap, history] = await Promise.all([
+  const [bootstrap, history, fixtures] = await Promise.all([
     getBootstrap(),
     getManagerHistory(),
+    getFixtures(),
   ]);
 
-  const { teams, positionMap, players: allPlayers } = buildLookups(bootstrap);
+  const { teams, positionMap, players: allPlayers, currentEvent } = buildLookups(bootstrap);
   const playedGws = history.current.filter((gw) => gw.event_transfers > 0);
 
-  if (playedGws.length === 0) return [];
+  if (playedGws.length === 0) return { transfers: [], teams };
+
+  // Build upcoming fixtures for xPts enrichment
+  const baseGw = currentEvent?.id || history.current[history.current.length - 1]?.event || 1;
+  const upcomingByTeam = getUpcomingFixturesByTeam(fixtures, teams, baseGw);
 
   // Fetch picks for all played gameweeks (we need GW before and GW of transfer)
   const allGwIds = history.current.map((gw) => gw.event);
@@ -491,6 +520,14 @@ export async function fetchTransferHistory() {
           club: teams[pIn.team]?.short_name || "???",
           clubFull: teams[pIn.team]?.name || "Unknown",
           price: pIn.now_cost / 10,
+          teamId: pIn.team,
+          form: parseFloat(pIn.form) || 0,
+          ictIndex: parseFloat(pIn.ict_index) || 0,
+          pointsPerGame: parseFloat(pIn.points_per_game) || 0,
+          chanceOfPlaying: pIn.chance_of_playing_next_round,
+          bonus: pIn.bonus || 0,
+          minutes: pIn.minutes || 0,
+          upcomingFixtures: (upcomingByTeam[pIn.team] || []).slice(0, 5),
         },
         playerOut: {
           id: pOut.id,
@@ -499,6 +536,14 @@ export async function fetchTransferHistory() {
           club: teams[pOut.team]?.short_name || "???",
           clubFull: teams[pOut.team]?.name || "Unknown",
           price: pOut.now_cost / 10,
+          teamId: pOut.team,
+          form: parseFloat(pOut.form) || 0,
+          ictIndex: parseFloat(pOut.ict_index) || 0,
+          pointsPerGame: parseFloat(pOut.points_per_game) || 0,
+          chanceOfPlaying: pOut.chance_of_playing_next_round,
+          bonus: pOut.bonus || 0,
+          minutes: pOut.minutes || 0,
+          upcomingFixtures: (upcomingByTeam[pOut.team] || []).slice(0, 5),
         },
       });
     }
@@ -545,21 +590,18 @@ export async function fetchTransferHistory() {
   // Sort by most recent first
   transfers.sort((a, b) => b.gameweek - a.gameweek);
 
-  return transfers;
+  return { transfers, teams };
 }
 
 /* ── analyzeTransfer ──────────────────────────────────────── */
 
-export function analyzeTransfer(playerOut, playerIn, gameweeks) {
-  const outProjected = playerOut.pointsHistory
-    ? playerOut.pointsHistory.slice(0, gameweeks).reduce((s, v) => s + v, 0)
-    : Math.round((playerOut.form || 4) * gameweeks);
+export function analyzeTransfer(playerOut, playerIn, gameweeks, teams) {
+  const outResult = calculateMultiGwXpts(playerOut, playerOut.upcomingFixtures, teams, gameweeks);
+  const inResult = calculateMultiGwXpts(playerIn, playerIn.upcomingFixtures, teams, gameweeks);
 
-  const inProjected = playerIn.expectedPoints
-    ? playerIn.expectedPoints.slice(0, gameweeks).reduce((s, v) => s + v, 0)
-    : Math.round((playerIn.form || 4) * gameweeks);
-
-  const pointsDiff = inProjected - outProjected;
+  const outProjected = outResult.totalXpts;
+  const inProjected = inResult.totalXpts;
+  const pointsDiff = +(inProjected - outProjected).toFixed(1);
   const formDiff = (playerIn.form || 0) - (playerOut.form || 0);
   const priceDiff = (playerIn.price || 0) - (playerOut.price || 0);
 
@@ -568,31 +610,39 @@ export function analyzeTransfer(playerOut, playerIn, gameweeks) {
         .slice(0, gameweeks)
         .reduce((s, f) => s + f.difficulty, 0) / gameweeks
     : 3;
-  const avgOutDifficulty = playerOut.fixtureDifficulty || 3;
+  const avgOutDifficulty = playerOut.upcomingFixtures?.length
+    ? playerOut.upcomingFixtures
+        .slice(0, gameweeks)
+        .reduce((s, f) => s + f.difficulty, 0) / gameweeks
+    : 3;
   const fixtureDiff = avgOutDifficulty - avgInDifficulty;
 
   let riskLevel;
-  if (Math.abs(pointsDiff) <= 3 && Math.abs(formDiff) < 1) {
+  if (Math.abs(pointsDiff) <= 2 && Math.abs(formDiff) < 1) {
     riskLevel = "Low";
-  } else if (Math.abs(pointsDiff) > 8 || avgInDifficulty > 3.5) {
+  } else if (Math.abs(pointsDiff) > 5 || avgInDifficulty > 3.5) {
     riskLevel = "High";
   } else {
     riskLevel = "Medium";
   }
 
   let recommendation;
-  if (pointsDiff > 5 && formDiff > 0) {
+  if (pointsDiff > 3 && formDiff >= 0) {
     recommendation = "Strong Buy";
-  } else if (pointsDiff < -3 || formDiff < -1.5) {
+  } else if (pointsDiff < -2 || formDiff < -1.5) {
     recommendation = "Avoid";
   } else {
     recommendation = "Neutral";
   }
 
+  // Build reasoning from xPts factors
+  const inReasons = inResult.topReasons;
+  const outReasons = outResult.topReasons;
+
   const explanations = {
-    "Strong Buy": `${playerIn.name} is projected to outscore ${playerOut.name} by ${pointsDiff} points over the next ${gameweeks} gameweeks. With better form (${playerIn.form} vs ${playerOut.form}) and favorable upcoming fixtures, this looks like a smart move.`,
-    Neutral: `This is a sideways move. ${playerIn.name} and ${playerOut.name} are projected similarly over the next ${gameweeks} gameweeks (${pointsDiff > 0 ? "+" : ""}${pointsDiff} point difference). Consider saving the transfer for a better opportunity.`,
-    Avoid: `${playerOut.name} is the better option here. Keeping the current player saves a transfer and is projected to yield ${Math.abs(pointsDiff)} more points over ${gameweeks} gameweeks.`,
+    "Strong Buy": `${playerIn.name} (${inProjected} xPts) is projected to outscore ${playerOut.name} (${outProjected} xPts) over ${gameweeks} GW${gameweeks > 1 ? "s" : ""}. Key factors: ${inReasons.join(", ").toLowerCase()}.`,
+    Neutral: `Sideways move. ${playerIn.name} (${inProjected} xPts) vs ${playerOut.name} (${outProjected} xPts) over ${gameweeks} GW${gameweeks > 1 ? "s" : ""}. Consider saving the transfer.`,
+    Avoid: `${playerOut.name} (${outProjected} xPts) is the better option. Key: ${outReasons.join(", ").toLowerCase()}.`,
   };
 
   return {
@@ -605,6 +655,8 @@ export function analyzeTransfer(playerOut, playerIn, gameweeks) {
     explanation: explanations[recommendation],
     outProjected,
     inProjected,
+    outReasons,
+    inReasons,
     avgInDifficulty: avgInDifficulty.toFixed(1),
   };
 }

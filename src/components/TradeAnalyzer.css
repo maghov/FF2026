@@ -502,6 +502,141 @@
   display: inline-block;
 }
 
+/* xPts in stat cards */
+.trade-xpts-value {
+  color: var(--primary) !important;
+}
+
+.trade-xpts-reasons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin-top: 0.6rem;
+  padding-top: 0.6rem;
+  border-top: 1px solid var(--border);
+}
+
+.trade-reason-chip {
+  font-size: 0.65rem;
+  font-weight: 600;
+  padding: 0.15rem 0.45rem;
+  border-radius: 4px;
+  background: var(--primary-bg, rgba(94, 114, 228, 0.12));
+  color: var(--primary);
+  border: 1px solid rgba(94, 114, 228, 0.2);
+}
+
+.trade-reason-chip.positive {
+  background: var(--positive-bg, rgba(0, 230, 118, 0.12));
+  color: var(--positive);
+  border-color: rgba(0, 230, 118, 0.25);
+}
+
+.trade-reason-chip.small {
+  font-size: 0.6rem;
+  padding: 0.1rem 0.35rem;
+}
+
+/* Reasons in trade result */
+.trade-reasons-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  padding: 0.75rem;
+  background: var(--bg);
+  border-radius: 8px;
+}
+
+.trade-reasons-group {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.trade-reasons-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  min-width: 80px;
+}
+
+.trade-reasons-chips {
+  display: flex;
+  gap: 0.3rem;
+  flex-wrap: wrap;
+}
+
+/* Top Picks Section */
+.trade-top-picks {
+  background: var(--card-bg);
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  padding: 1.25rem;
+}
+
+.trade-top-picks h4 {
+  margin: 0 0 0.75rem;
+  font-size: 1rem;
+  color: var(--text-primary);
+}
+
+.top-picks-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.75rem;
+}
+
+.top-pick-card {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.75rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: left;
+  font-family: inherit;
+  color: inherit;
+}
+
+.top-pick-card:hover {
+  border-color: var(--primary);
+  box-shadow: 0 2px 8px rgba(94, 114, 228, 0.15);
+}
+
+.top-pick-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.35rem;
+}
+
+.top-pick-xpts {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--primary);
+}
+
+.top-pick-name {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 0.15rem;
+}
+
+.top-pick-meta {
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  margin-bottom: 0.4rem;
+}
+
+.top-pick-reasons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
 /* Placeholder */
 .trade-placeholder {
   background: var(--card-bg);
@@ -543,5 +678,9 @@
 
   .filter-row {
     flex-direction: column;
+  }
+
+  .top-picks-grid {
+    grid-template-columns: 1fr;
   }
 }

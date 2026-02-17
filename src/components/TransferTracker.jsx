@@ -1,6 +1,7 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { useApi } from "../hooks/useApi";
 import { fetchTransferHistory } from "../services/api";
+import { calculateMultiGwXpts } from "../services/xpts";
 import { useAuth } from "../context/AuthContext";
 import { ref, get, set } from "firebase/database";
 import { db } from "../firebase";
@@ -10,15 +11,17 @@ const POSITIONS = ["All", "GK", "DEF", "MID", "FWD"];
 
 export default function TransferTracker() {
   const { fplCode, user } = useAuth();
-  const { data: transfers, loading, error, reload } = useApi(fetchTransferHistory, [fplCode]);
+  const { data: result, loading, error, reload } = useApi(fetchTransferHistory, [fplCode]);
+  const transfers = useMemo(() => result?.transfers || [], [result]);
+  const teams = useMemo(() => result?.teams || {}, [result]);
   const [expandedId, setExpandedId] = useState(null);
   const [posFilter, setPosFilter] = useState("All");
   const [newTransferIds, setNewTransferIds] = useState(new Set());
   const cardRefs = useRef({});
 
-  // Firebase caching: save transfers when loaded, detect new ones
+  // Firebase caching: save transfers when loaded, detect new ones, write xPts snapshots
   useEffect(() => {
-    if (!transfers || transfers.length === 0 || !user) return;
+    if (!transfers.length || !user) return;
 
     const cacheRef = ref(db, `transferCache/${user.uid}`);
 
@@ -27,12 +30,12 @@ export default function TransferTracker() {
         const snap = await get(cacheRef);
         const cached = snap.val();
 
+        const newIds = new Set();
         if (cached?.transfers) {
           // Detect new transfers by comparing gameweek+playerIn combos
           const cachedKeys = new Set(
             cached.transfers.map((t) => `${t.gameweek}-${t.playerIn.id}`)
           );
-          const newIds = new Set();
           transfers.forEach((t, idx) => {
             if (!cachedKeys.has(`${t.gameweek}-${t.playerIn.id}`)) {
               newIds.add(idx);
@@ -53,13 +56,65 @@ export default function TransferTracker() {
           })),
           updatedAt: new Date().toISOString(),
         });
+
+        // Write xPts snapshots for new transfers
+        for (const idx of newIds) {
+          const t = transfers[idx];
+          const snapshotKey = `${t.gameweek}-${t.playerIn.id}`;
+          const snapRef = ref(db, `xptsSnapshots/${user.uid}/${snapshotKey}`);
+
+          // Skip if snapshot already exists
+          const existing = await get(snapRef);
+          if (existing.exists()) continue;
+
+          let inXpts = { avgXpts: null, topReasons: [] };
+          let outXpts = { avgXpts: null, topReasons: [] };
+
+          try {
+            const inResult = calculateMultiGwXpts(t.playerIn, t.playerIn.upcomingFixtures, teams, 3);
+            inXpts = { avgXpts: inResult.avgXpts, topReasons: inResult.topReasons };
+          } catch (e) {
+            console.warn("xPts calc failed for playerIn", t.playerIn.name, e);
+          }
+
+          try {
+            const outResult = calculateMultiGwXpts(t.playerOut, t.playerOut.upcomingFixtures, teams, 3);
+            outXpts = { avgXpts: outResult.avgXpts, topReasons: outResult.topReasons };
+          } catch (e) {
+            console.warn("xPts calc failed for playerOut", t.playerOut.name, e);
+          }
+
+          await set(snapRef, {
+            uid: user.uid,
+            userName: user.displayName || "Unknown",
+            capturedAt: new Date().toISOString(),
+            gameweek: t.gameweek,
+            transferCost: t.transferCost || 0,
+            playerOut: {
+              id: t.playerOut.id,
+              name: t.playerOut.name,
+              position: t.playerOut.position,
+              club: t.playerOut.club,
+              avgXpts: outXpts.avgXpts,
+              topReasons: outXpts.topReasons,
+            },
+            playerIn: {
+              id: t.playerIn.id,
+              name: t.playerIn.name,
+              position: t.playerIn.position,
+              club: t.playerIn.club,
+              avgXpts: inXpts.avgXpts,
+              topReasons: inXpts.topReasons,
+            },
+          });
+        }
       } catch (err) {
         console.error("Transfer cache sync error:", err);
       }
     }
 
     syncCache();
-  }, [transfers, user]);
+  }, [transfers, teams, user]);
 
   // Scroll to a transfer card
   const scrollToCard = useCallback((idx) => {
@@ -90,7 +145,7 @@ export default function TransferTracker() {
     );
   }
 
-  if (!transfers || transfers.length === 0) {
+  if (transfers.length === 0) {
     return (
       <div className="transfers-empty">
         <div className="empty-icon">
