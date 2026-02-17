@@ -333,6 +333,46 @@ export async function fetchLeagueData() {
   };
 }
 
+/* ── fetchUpcomingFixtures ─────────────────────────────────── */
+
+export async function fetchUpcomingFixtures() {
+  const [bootstrap, fixtures] = await Promise.all([
+    getBootstrap(),
+    getFixtures(),
+  ]);
+
+  const { teams, currentEvent } = buildLookups(bootstrap);
+  const currentGw = currentEvent?.id || 1;
+
+  // Group future fixtures by gameweek (next 5 GWs)
+  const upcoming = fixtures
+    .filter((f) => f.event && f.event > currentGw && !f.finished)
+    .sort((a, b) => a.event - b.event || a.kickoff_time?.localeCompare(b.kickoff_time || ""));
+
+  const gwIds = [...new Set(upcoming.map((f) => f.event))].slice(0, 5);
+  const gwDeadlines = {};
+  for (const e of bootstrap.events) {
+    gwDeadlines[e.id] = e.deadline_time;
+  }
+
+  return gwIds.map((gwId) => ({
+    gw: gwId,
+    deadline: gwDeadlines[gwId] || null,
+    matches: upcoming
+      .filter((f) => f.event === gwId)
+      .map((f) => ({
+        id: f.id,
+        kickoff: f.kickoff_time,
+        homeTeam: teams[f.team_h]?.name || "TBD",
+        homeShort: teams[f.team_h]?.short_name || "?",
+        awayTeam: teams[f.team_a]?.name || "TBD",
+        awayShort: teams[f.team_a]?.short_name || "?",
+        homeDifficulty: f.team_h_difficulty,
+        awayDifficulty: f.team_a_difficulty,
+      })),
+  }));
+}
+
 /* ── analyzeTransfer ──────────────────────────────────────── */
 
 export function analyzeTransfer(playerOut, playerIn, gameweeks) {
