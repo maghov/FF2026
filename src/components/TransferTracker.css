@@ -1,0 +1,316 @@
+.transfer-tracker {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+/* Empty state */
+.transfers-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 1.5rem;
+  text-align: center;
+  color: var(--text-secondary);
+}
+
+.empty-icon {
+  opacity: 0.4;
+  margin-bottom: 1rem;
+}
+
+.transfers-empty h3 {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0 0 0.5rem;
+}
+
+.transfers-empty p {
+  font-size: 0.85rem;
+  margin: 0;
+}
+
+/* Stats */
+.transfer-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 0.75rem;
+}
+
+.transfer-stat-value {
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: var(--primary);
+  line-height: 1.1;
+}
+
+.transfer-stat-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-top: 0.3rem;
+}
+
+.stat-positive .transfer-stat-value {
+  color: #22c55e;
+}
+
+.stat-negative .transfer-stat-value {
+  color: #ef4444;
+}
+
+/* Transfer cost banner */
+.transfer-cost-banner {
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  border-radius: 8px;
+  padding: 0.6rem 1rem;
+  font-size: 0.8rem;
+  color: #ef4444;
+  text-align: center;
+}
+
+/* Transfer list */
+.transfer-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+/* Transfer card */
+.transfer-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1rem;
+  cursor: pointer;
+  transition: box-shadow 0.2s, border-color 0.2s;
+  border-left: 4px solid var(--border);
+}
+
+.transfer-card:hover {
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+}
+
+.transfer-positive {
+  border-left-color: #22c55e;
+}
+
+.transfer-negative {
+  border-left-color: #ef4444;
+}
+
+/* Card header */
+.transfer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+}
+
+.transfer-gw {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.transfer-net {
+  font-size: 1rem;
+  font-weight: 800;
+  border-radius: 6px;
+  padding: 0.15rem 0.6rem;
+}
+
+.net-positive {
+  color: #22c55e;
+  background: rgba(34, 197, 94, 0.1);
+}
+
+.net-negative {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.1);
+}
+
+/* Transfer players */
+.transfer-players {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  position: relative;
+}
+
+.transfer-player {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.5rem 0.6rem;
+  border-radius: 8px;
+  background: var(--bg);
+}
+
+.transfer-direction {
+  font-size: 0.6rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+  min-width: 32px;
+  text-align: center;
+}
+
+.transfer-player.out .transfer-direction {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.transfer-player.in .transfer-direction {
+  color: #22c55e;
+  background: rgba(34, 197, 94, 0.1);
+}
+
+.transfer-player-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.transfer-player-name {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.transfer-player-meta {
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+}
+
+.transfer-player-points {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+
+.transfer-arrow {
+  display: flex;
+  justify-content: center;
+  color: var(--text-secondary);
+  opacity: 0.4;
+  padding: 0.1rem 0;
+}
+
+/* Hit badge */
+.transfer-hit {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #ef4444;
+  margin-top: 0.5rem;
+  text-align: right;
+}
+
+/* Meta / expand hint */
+.transfer-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--border);
+}
+
+.expand-hint {
+  font-size: 0.6rem;
+  opacity: 0.6;
+}
+
+/* Breakdown table */
+.transfer-breakdown {
+  margin-top: 0.75rem;
+  border-top: 1px solid var(--border);
+  padding-top: 0.75rem;
+}
+
+.breakdown-header {
+  display: grid;
+  grid-template-columns: 40px 1fr 1fr 50px;
+  gap: 0.5rem;
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding-bottom: 0.4rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.breakdown-row {
+  display: grid;
+  grid-template-columns: 40px 1fr 1fr 50px;
+  gap: 0.5rem;
+  padding: 0.35rem 0;
+  font-size: 0.8rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.breakdown-row:last-child {
+  border-bottom: none;
+}
+
+.breakdown-total {
+  font-weight: 700;
+  border-top: 2px solid var(--border);
+  border-bottom: none;
+  padding-top: 0.5rem;
+  margin-top: 0.1rem;
+}
+
+.breakdown-gw {
+  font-weight: 600;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+}
+
+.breakdown-pts {
+  color: var(--text-primary);
+  text-align: center;
+}
+
+.breakdown-diff {
+  font-weight: 700;
+  text-align: right;
+}
+
+.diff-positive {
+  color: #22c55e;
+}
+
+.diff-negative {
+  color: #ef4444;
+}
+
+@media (max-width: 600px) {
+  .transfer-stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .transfer-player-name {
+    font-size: 0.8rem;
+  }
+
+  .breakdown-header,
+  .breakdown-row {
+    grid-template-columns: 32px 1fr 1fr 44px;
+    font-size: 0.72rem;
+  }
+}

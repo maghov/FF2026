@@ -433,6 +433,121 @@ export async function fetchUpcomingFixtures() {
   }));
 }
 
+/* ── fetchTransferHistory ─────────────────────────────────── */
+
+export async function fetchTransferHistory() {
+  const [bootstrap, history] = await Promise.all([
+    getBootstrap(),
+    getManagerHistory(),
+  ]);
+
+  const { teams, positionMap, players: allPlayers } = buildLookups(bootstrap);
+  const playedGws = history.current.filter((gw) => gw.event_transfers > 0);
+
+  if (playedGws.length === 0) return [];
+
+  // Fetch picks for all played gameweeks (we need GW before and GW of transfer)
+  const allGwIds = history.current.map((gw) => gw.event);
+  const picksMap = {};
+  // Fetch all picks in batches to avoid too many parallel requests
+  const batchSize = 5;
+  for (let i = 0; i < allGwIds.length; i += batchSize) {
+    const batch = allGwIds.slice(i, i + batchSize);
+    const results = await Promise.all(
+      batch.map((gw) => getManagerPicks(gw).catch(() => null))
+    );
+    batch.forEach((gw, idx) => {
+      if (results[idx]) picksMap[gw] = results[idx];
+    });
+  }
+
+  // Detect transfers by comparing consecutive GW picks
+  const transfers = [];
+  for (const gwData of playedGws) {
+    const gw = gwData.event;
+    const prevGw = allGwIds[allGwIds.indexOf(gw) - 1];
+    if (!prevGw || !picksMap[prevGw] || !picksMap[gw]) continue;
+
+    const prevIds = new Set(picksMap[prevGw].picks.map((p) => p.element));
+    const currIds = new Set(picksMap[gw].picks.map((p) => p.element));
+
+    const playersIn = [...currIds].filter((id) => !prevIds.has(id));
+    const playersOut = [...prevIds].filter((id) => !currIds.has(id));
+
+    // Pair transfers (in/out)
+    const count = Math.min(playersIn.length, playersOut.length);
+    for (let i = 0; i < count; i++) {
+      const pIn = allPlayers[playersIn[i]];
+      const pOut = allPlayers[playersOut[i]];
+      if (!pIn || !pOut) continue;
+
+      transfers.push({
+        gameweek: gw,
+        transferCost: gwData.event_transfers_cost,
+        playerIn: {
+          id: pIn.id,
+          name: pIn.web_name,
+          position: positionMap[pIn.element_type],
+          club: teams[pIn.team]?.short_name || "???",
+          clubFull: teams[pIn.team]?.name || "Unknown",
+          price: pIn.now_cost / 10,
+        },
+        playerOut: {
+          id: pOut.id,
+          name: pOut.web_name,
+          position: positionMap[pOut.element_type],
+          club: teams[pOut.team]?.short_name || "???",
+          clubFull: teams[pOut.team]?.name || "Unknown",
+          price: pOut.now_cost / 10,
+        },
+      });
+    }
+  }
+
+  // Now calculate points for each transfer from the transfer GW onwards
+  const currentGw = Math.max(...allGwIds);
+  const liveCache = {};
+
+  for (const t of transfers) {
+    let inPoints = 0;
+    let outPoints = 0;
+    const gwBreakdown = [];
+
+    for (let gw = t.gameweek; gw <= currentGw; gw++) {
+      if (!liveCache[gw]) {
+        liveCache[gw] = await getLiveGameweek(gw).catch(() => null);
+      }
+      const live = liveCache[gw];
+      if (!live) continue;
+
+      const inEl = live.elements.find((e) => e.id === t.playerIn.id);
+      const outEl = live.elements.find((e) => e.id === t.playerOut.id);
+      const inPts = inEl?.stats?.total_points || 0;
+      const outPts = outEl?.stats?.total_points || 0;
+
+      inPoints += inPts;
+      outPoints += outPts;
+      gwBreakdown.push({
+        gw,
+        inPts,
+        outPts,
+        diff: inPts - outPts,
+      });
+    }
+
+    t.playerIn.pointsSinceTransfer = inPoints;
+    t.playerOut.pointsSinceTransfer = outPoints;
+    t.netGain = inPoints - outPoints;
+    t.gwBreakdown = gwBreakdown;
+    t.gameweeksCompared = gwBreakdown.length;
+  }
+
+  // Sort by most recent first
+  transfers.sort((a, b) => b.gameweek - a.gameweek);
+
+  return transfers;
+}
+
 /* ── analyzeTransfer ──────────────────────────────────────── */
 
 export function analyzeTransfer(playerOut, playerIn, gameweeks) {
