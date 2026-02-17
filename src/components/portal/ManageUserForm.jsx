@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { managers, roles, employmentTypes } from "../../data/portalMockData";
-import "../portal/CreateUserForm.css";
+import "./CreateUserForm.css";
 import "./ManageUserForm.css";
 
 const initialState = {
