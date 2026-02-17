@@ -158,7 +158,7 @@ function TeamSummaryCard({ summary }) {
 }
 
 export default function MyTeam() {
-  const { data, loading, error, reload } = useApi(fetchMyTeam, 60000);
+  const { data, loading, error, reload } = useApi(fetchMyTeam);
   const [expandedId, setExpandedId] = useState(null);
 
   if (loading) return <LoadingSpinner message="Loading your team..." />;

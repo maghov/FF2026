@@ -95,7 +95,7 @@ function PlayerDetail({ player, onClose }) {
 }
 
 export default function Formation() {
-  const { data, loading, error, reload } = useApi(fetchMyTeam, 60000);
+  const { data, loading, error, reload } = useApi(fetchMyTeam);
   const [selectedPlayer, setSelectedPlayer] = useState(null);
 
   if (loading) return <LoadingSpinner message="Loading formation..." />;
