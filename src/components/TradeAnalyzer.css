@@ -1,0 +1,376 @@
+.trade-analyzer {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+/* Controls */
+.trade-controls {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.controls-card {
+  background: var(--card-bg);
+  border-radius: 12px;
+  padding: 1.5rem;
+  border: 1px solid var(--border);
+}
+
+.controls-card h3 {
+  margin: 0 0 1rem;
+  font-size: 1.1rem;
+  color: var(--text-primary);
+}
+
+.selector {
+  margin-bottom: 1rem;
+}
+
+.selector label {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 0.4rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.selector select {
+  width: 100%;
+  padding: 0.6rem 0.75rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.selector select:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px var(--primary-bg);
+}
+
+.gameweeks-selector label {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 0.4rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.gw-buttons {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.gw-btn {
+  flex: 1;
+  padding: 0.5rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text-primary);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.gw-btn:hover {
+  border-color: var(--primary);
+}
+
+.gw-btn.active {
+  background: var(--primary);
+  color: white;
+  border-color: var(--primary);
+}
+
+/* Versus Card */
+.versus-card {
+  background: var(--card-bg);
+  border-radius: 12px;
+  padding: 1.5rem;
+  border: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+}
+
+.versus-player {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+  text-align: center;
+}
+
+.versus-name {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.versus-detail {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.versus-icon {
+  font-size: 1.2rem;
+  font-weight: 800;
+  color: var(--text-secondary);
+  background: var(--bg);
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Trade Results */
+.trade-results {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 1rem;
+}
+
+.trade-result {
+  background: var(--card-bg);
+  border-radius: 12px;
+  padding: 1.5rem;
+  border: 1px solid var(--border);
+}
+
+.recommendation-badge {
+  display: inline-block;
+  padding: 0.4rem 1rem;
+  border-radius: 20px;
+  font-weight: 700;
+  font-size: 0.9rem;
+  margin-bottom: 1rem;
+}
+
+.recommendation-badge.strong-buy {
+  background: var(--positive-bg);
+  color: var(--positive);
+}
+
+.recommendation-badge.avoid {
+  background: var(--negative-bg);
+  color: var(--negative);
+}
+
+.recommendation-badge.neutral {
+  background: #fff3cd;
+  color: #856404;
+}
+
+.result-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+}
+
+.result-metric {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding: 0.6rem;
+  background: var(--bg);
+  border-radius: 8px;
+}
+
+.result-label {
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.result-value {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.result-value.positive { color: var(--positive); }
+.result-value.negative { color: var(--negative); }
+
+.risk-badge {
+  display: inline-block;
+  padding: 0.15rem 0.6rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.risk-low { background: var(--positive-bg); color: var(--positive); }
+.risk-medium { background: #fff3cd; color: #856404; }
+.risk-high { background: var(--negative-bg); color: var(--negative); }
+
+/* Points Projection Bars */
+.points-projection {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.projection-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.proj-label {
+  width: 100px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.proj-track {
+  flex: 1;
+  height: 28px;
+  background: var(--bg);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.proj-fill {
+  height: 100%;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  padding: 0 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: white;
+  min-width: 50px;
+  transition: width 0.5s ease;
+}
+
+.proj-fill.out { background: var(--text-secondary); }
+.proj-fill.in { background: var(--primary); }
+
+/* AI Explanation */
+.ai-explanation {
+  background: var(--bg);
+  border-radius: 8px;
+  padding: 1rem;
+  border-left: 3px solid var(--primary);
+}
+
+.explanation-header {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--primary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 0.5rem;
+}
+
+.ai-explanation p {
+  margin: 0;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--text-primary);
+}
+
+/* Fixture Comparison */
+.fixture-comparison {
+  background: var(--card-bg);
+  border-radius: 12px;
+  padding: 1.25rem;
+  border: 1px solid var(--border);
+}
+
+.fixture-comparison h4 {
+  margin: 0 0 0.75rem;
+  font-size: 0.95rem;
+  color: var(--text-primary);
+}
+
+.fixture-table {
+  display: flex;
+  flex-direction: column;
+}
+
+.fixture-row {
+  display: grid;
+  grid-template-columns: 50px 1fr;
+  padding: 0.4rem 0;
+  align-items: center;
+  gap: 0.5rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.fixture-row.header {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  border-bottom: 2px solid var(--border);
+}
+
+.fixture-gw {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.fixture-badge {
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  display: inline-block;
+}
+
+/* Placeholder */
+.trade-placeholder {
+  background: var(--card-bg);
+  border-radius: 12px;
+  padding: 3rem;
+  border: 2px dashed var(--border);
+  text-align: center;
+}
+
+.placeholder-icon {
+  font-size: 3rem;
+  color: var(--text-secondary);
+  opacity: 0.4;
+  margin-bottom: 0.5rem;
+}
+
+.trade-placeholder p {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  margin: 0;
+}
+
+@media (max-width: 768px) {
+  .trade-controls {
+    grid-template-columns: 1fr;
+  }
+
+  .trade-results {
+    grid-template-columns: 1fr;
+  }
+
+  .result-metrics {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}

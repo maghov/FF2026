@@ -1,0 +1,283 @@
+.points-performance {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+/* Key Metrics */
+.metrics-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 1rem;
+}
+
+.metric-card {
+  background: var(--card-bg);
+  border-radius: 12px;
+  padding: 1.25rem;
+  text-align: center;
+  border: 1px solid var(--border);
+}
+
+.metric-card.featured {
+  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+  color: white;
+  border: none;
+}
+
+.metric-card.featured .metric-label {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.metric-card.featured .metric-value {
+  color: white;
+}
+
+.metric-value {
+  display: block;
+  font-size: 1.8rem;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.metric-value.positive { color: var(--positive); }
+.metric-value.negative { color: var(--negative); }
+
+.metric-label {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  margin-top: 0.25rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Panels */
+.panels-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 1rem;
+}
+
+.panel {
+  background: var(--card-bg);
+  border-radius: 12px;
+  padding: 1.25rem;
+  border: 1px solid var(--border);
+}
+
+.panel h3 {
+  margin: 0 0 1rem;
+  font-size: 1rem;
+  color: var(--text-primary);
+}
+
+/* Bar Chart */
+.bar-chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.5rem;
+  height: 160px;
+  padding-top: 1rem;
+}
+
+.bar-group {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  height: 100%;
+}
+
+.bar-container {
+  flex: 1;
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  width: 100%;
+}
+
+.bar {
+  flex: 1;
+  border-radius: 4px 4px 0 0;
+  position: relative;
+  min-height: 4px;
+  transition: height 0.5s ease;
+}
+
+.bar-primary {
+  background: var(--primary);
+}
+
+.bar-compare {
+  background: var(--border);
+  opacity: 0.6;
+}
+
+.bar-value {
+  position: absolute;
+  top: -18px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+
+.bar-label {
+  font-size: 0.65rem;
+  color: var(--text-secondary);
+}
+
+.chart-legend {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+}
+
+.legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.legend-dot.primary { background: var(--primary); }
+.legend-dot.compare { background: var(--border); }
+
+/* Projections Table */
+.projections-table,
+.league-standings {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.table-header {
+  display: grid;
+  grid-template-columns: 60px 1fr 80px;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 2px solid var(--border);
+}
+
+.table-row {
+  display: grid;
+  grid-template-columns: 60px 1fr 80px;
+  padding: 0.6rem 0.75rem;
+  font-size: 0.85rem;
+  border-bottom: 1px solid var(--border);
+  align-items: center;
+}
+
+.projected-value {
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.difficulty {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.15rem 0.5rem;
+  border-radius: 4px;
+  text-align: center;
+}
+
+.difficulty-easy { background: #00e676; color: #1a1a2e; }
+.difficulty-medium { background: #ffd600; color: #1a1a2e; }
+.difficulty-hard { background: #ff6d00; color: white; }
+
+/* League */
+.league-header {
+  grid-template-columns: 30px 1fr 60px;
+}
+
+.league-row {
+  grid-template-columns: 30px 1fr 60px;
+}
+
+.league-row.my-row {
+  background: var(--primary-bg);
+  border-radius: 6px;
+  font-weight: 700;
+}
+
+.rank {
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+
+.team-name {
+  display: flex;
+  flex-direction: column;
+}
+
+.team-name small {
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  font-weight: 400;
+}
+
+.league-points {
+  font-weight: 700;
+  color: var(--text-primary);
+  text-align: right;
+}
+
+/* Rank Trend */
+.rank-trend {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.rank-item {
+  display: grid;
+  grid-template-columns: 50px 1fr 80px;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+  align-items: center;
+}
+
+.rank-gw {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.rank-number {
+  font-weight: 700;
+  color: var(--text-primary);
+  font-size: 0.9rem;
+}
+
+.rank-change {
+  text-align: right;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.rank-change.positive { color: var(--positive); }
+.rank-change.negative { color: var(--negative); }
+
+@media (max-width: 640px) {
+  .metrics-row {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .panels-grid {
+    grid-template-columns: 1fr;
+  }
+}
