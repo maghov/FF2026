@@ -318,6 +318,25 @@
   border-bottom: 1px solid var(--border);
 }
 
+.fixture-row.three-col {
+  grid-template-columns: 1fr 50px 1fr;
+  text-align: center;
+}
+
+.fixture-row.three-col > :first-child {
+  justify-self: end;
+}
+
+.fixture-row.three-col > :last-child {
+  justify-self: start;
+}
+
+.fixture-blank {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  opacity: 0.4;
+}
+
 .fixture-row.header {
   font-size: 0.7rem;
   font-weight: 700;

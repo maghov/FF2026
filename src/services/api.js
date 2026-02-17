@@ -112,7 +112,8 @@ export async function fetchMyTeam() {
     .map((pick) => {
       const p = allPlayers[pick.element];
       const team = teams[p.team];
-      const nextFix = upcomingByTeam[p.team]?.[0];
+      const teamFixtures = upcomingByTeam[p.team] || [];
+      const nextFix = teamFixtures[0];
       const form = parseFloat(p.form) || 0;
 
       return {
@@ -125,6 +126,7 @@ export async function fetchMyTeam() {
         totalPoints: p.total_points,
         gameweekPoints: livePoints[p.id] ?? p.event_points ?? 0,
         form,
+        upcomingFixtures: teamFixtures.slice(0, 5),
         upcomingFixture: nextFix ? nextFix.opponent : "TBD",
         fixtureDifficulty: nextFix ? nextFix.difficulty : 3,
         isCaptain: pick.is_captain,
