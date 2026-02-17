@@ -3,15 +3,15 @@ import { getDatabase } from "firebase/database";
 import { getAuth } from "firebase/auth";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyBIy7mb_wS05I_0ICLMSX1P5avFim7yXsA",
-  authDomain: "chat-gtp-b0e1d.firebaseapp.com",
+  apiKey: "AIzaSyBhZ7XGKFde4UWy5H3i9NzVGYN-joVvoSY",
+  authDomain: "pl-football-fantasy.firebaseapp.com",
   databaseURL:
     "https://pl-football-fantasy-default-rtdb.europe-west1.firebasedatabase.app",
-  projectId: "chat-gtp-b0e1d",
-  storageBucket: "chat-gtp-b0e1d.appspot.com",
-  messagingSenderId: "617084173940",
-  appId: "1:617084173940:web:e66612d6dae0337d4e9b21",
-  measurementId: "G-TFJ234R5B9",
+  projectId: "pl-football-fantasy",
+  storageBucket: "pl-football-fantasy.firebasestorage.app",
+  messagingSenderId: "875638327100",
+  appId: "1:875638327100:web:020b2630584c6d1e6dc039",
+  measurementId: "G-FNBYMP2H7H",
 };
 
 const app = initializeApp(firebaseConfig);
