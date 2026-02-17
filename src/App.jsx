@@ -90,6 +90,8 @@ export default function App() {
         {activeTab === "trade" && <TradeAnalyzer />}
         {activeTab === "fixtures" && <Fixtures />}
       </main>
+
+      <div className="version-label">v0.01</div>
     </div>
   );
 }
