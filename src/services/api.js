@@ -81,18 +81,23 @@ function estimateFreeTransfers(history) {
 /* ── fetchMyTeam ──────────────────────────────────────────── */
 
 export async function fetchMyTeam() {
-  const [bootstrap, managerInfo, fixtures, history] = await Promise.all([
-    getBootstrap(),
-    getManagerInfo(),
-    getFixtures(),
-    getManagerHistory(),
-  ]);
+  // Start all independent fetches immediately
+  const bootstrapP = getBootstrap();
+  const managerInfoP = getManagerInfo();
+  const fixturesP = getFixtures();
+  const historyP = getManagerHistory();
 
+  // Only need bootstrap to determine currentGw, don't wait for the rest
+  const bootstrap = await bootstrapP;
   const { teams, positionMap, players: allPlayers, currentEvent } =
     buildLookups(bootstrap);
-  const currentGw = currentEvent?.id || managerInfo.current_event;
+  const currentGw = currentEvent?.id || 1;
 
-  const [picksData, liveData] = await Promise.all([
+  // Start Phase 2 in parallel with the still-running Phase 1 calls
+  const [managerInfo, fixtures, history, picksData, liveData] = await Promise.all([
+    managerInfoP,
+    fixturesP,
+    historyP,
     getManagerPicks(currentGw),
     getLiveGameweek(currentGw),
   ]);
