@@ -9,11 +9,26 @@ import "./TransferTracker.css";
 
 const POSITIONS = ["All", "GK", "DEF", "MID", "FWD"];
 
+const CHIP_LABELS = {
+  freehit: "FH",
+  wildcard: "WC",
+  bboost: "BB",
+  "3xc": "TC",
+};
+
+const CHIP_NAMES = {
+  freehit: "Free Hit",
+  wildcard: "Wildcard",
+  bboost: "Bench Boost",
+  "3xc": "Triple Captain",
+};
+
 export default function TransferTracker() {
   const { fplCode, user } = useAuth();
   const { data: result, loading, error, reload } = useApi(fetchTransferHistory, [fplCode]);
   const transfers = useMemo(() => result?.transfers || [], [result]);
   const teams = useMemo(() => result?.teams || {}, [result]);
+  const chips = useMemo(() => result?.chips || [], [result]);
   const [expandedId, setExpandedId] = useState(null);
   const [posFilter, setPosFilter] = useState("All");
   const [newTransferIds, setNewTransferIds] = useState(new Set());
@@ -49,6 +64,7 @@ export default function TransferTracker() {
           transfers: transfers.map((t) => ({
             gameweek: t.gameweek,
             transferCost: t.transferCost,
+            chip: t.chip || null,
             netGain: t.netGain,
             gameweeksCompared: t.gameweeksCompared,
             playerIn: { id: t.playerIn.id, name: t.playerIn.name, position: t.playerIn.position, club: t.playerIn.club, pointsSinceTransfer: t.playerIn.pointsSinceTransfer },
@@ -181,8 +197,29 @@ export default function TransferTracker() {
   let runningTotal = 0;
   for (const t of chronological) {
     runningTotal += t.netGain;
-    cumulativeData.push({ gw: t.gameweek, total: runningTotal, name: `${t.playerOut.name} → ${t.playerIn.name}` });
+    cumulativeData.push({
+      gw: t.gameweek,
+      total: runningTotal,
+      name: `${t.playerOut.name} → ${t.playerIn.name}`,
+      chip: t.chip,
+    });
   }
+  // Add BB/TC chip markers at GWs that had no transfers (so they appear on the chart)
+  const chartGws = new Set(cumulativeData.map(d => d.gw));
+  for (const c of chips) {
+    if ((c.name === 'bboost' || c.name === '3xc') && !chartGws.has(c.event)) {
+      // Find the running total at this point
+      const lastBefore = cumulativeData.filter(d => d.gw < c.event).pop();
+      cumulativeData.push({
+        gw: c.event,
+        total: lastBefore?.total || 0,
+        name: CHIP_NAMES[c.name],
+        chip: c.name,
+        chipOnly: true, // No transfer, just a marker
+      });
+    }
+  }
+  cumulativeData.sort((a, b) => a.gw - b.gw);
   const chartMax = Math.max(...cumulativeData.map((d) => Math.abs(d.total)), 1);
 
   return (
@@ -239,18 +276,26 @@ export default function TransferTracker() {
             <div className="chart-zero-line" />
             {cumulativeData.map((d, i) => {
               const isPositive = d.total >= 0;
-              const barHeight = Math.max((Math.abs(d.total) / chartMax) * 50, 2);
+              const barHeight = d.chipOnly ? 0 : Math.max((Math.abs(d.total) / chartMax) * 50, 2);
+              const chipLabel = d.chip ? CHIP_LABELS[d.chip] : null;
               return (
-                <div key={i} className="chart-bar-group">
+                <div key={i} className={`chart-bar-group ${d.chip ? "chart-bar-chip" : ""}`}>
+                  {chipLabel && <span className={`chart-chip-tag chip-${d.chip}`}>{chipLabel}</span>}
                   <div className="chart-bar-area">
-                    {isPositive ? (
+                    {d.chipOnly ? (
+                      <div className="chart-bar-top">
+                        <span className="chart-bar-val chart-chip-marker">
+                          {CHIP_LABELS[d.chip]}
+                        </span>
+                      </div>
+                    ) : isPositive ? (
                       <div className="chart-bar-top">
                         <span className="chart-bar-val">{d.total >= 0 ? "+" : ""}{d.total}</span>
-                        <div className="chart-bar bar-positive" style={{ height: `${barHeight}%` }} />
+                        <div className={`chart-bar bar-positive ${d.chip ? `bar-chip-${d.chip}` : ""}`} style={{ height: `${barHeight}%` }} />
                       </div>
                     ) : (
                       <div className="chart-bar-bottom">
-                        <div className="chart-bar bar-negative" style={{ height: `${barHeight}%` }} />
+                        <div className={`chart-bar bar-negative ${d.chip ? `bar-chip-${d.chip}` : ""}`} style={{ height: `${barHeight}%` }} />
                         <span className="chart-bar-val">{d.total}</span>
                       </div>
                     )}
@@ -297,7 +342,14 @@ export default function TransferTracker() {
               {isNew && <div className="new-badge">NEW</div>}
 
               <div className="transfer-header">
-                <span className="transfer-gw">GW{t.gameweek}</span>
+                <div className="transfer-gw-row">
+                  <span className="transfer-gw">GW{t.gameweek}</span>
+                  {t.chip && (
+                    <span className={`transfer-chip-badge chip-${t.chip}`}>
+                      {CHIP_LABELS[t.chip]} — {CHIP_NAMES[t.chip]}
+                    </span>
+                  )}
+                </div>
                 <div className={`transfer-net ${isPositive ? "net-positive" : "net-negative"}`}>
                   {isPositive ? "+" : ""}{t.netGain} pts
                 </div>

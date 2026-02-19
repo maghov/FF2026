@@ -762,9 +762,22 @@ export async function fetchTransferHistory() {
   ]);
 
   const { teams, positionMap, players: allPlayers, currentEvent } = buildLookups(bootstrap);
-  const playedGws = history.current.filter((gw) => gw.event_transfers > 0);
 
-  if (playedGws.length === 0) return { transfers: [], teams };
+  // Build chip map: gameweek → chip name
+  const chipByGw = {};
+  for (const chip of (history.chips || [])) {
+    chipByGw[chip.event] = chip.name; // "wildcard", "freehit", "bboost", "3xc"
+  }
+  const freeHitGws = new Set(
+    (history.chips || []).filter(c => c.name === 'freehit').map(c => c.event)
+  );
+
+  // Include Free Hit / Wildcard GWs even if event_transfers is 0
+  const playedGws = history.current.filter((gw) =>
+    gw.event_transfers > 0 || chipByGw[gw.event] === 'freehit' || chipByGw[gw.event] === 'wildcard'
+  );
+
+  if (playedGws.length === 0) return { transfers: [], teams, chips: history.chips || [] };
 
   // Build upcoming fixtures for xPts enrichment
   const baseGw = currentEvent?.id || history.current[history.current.length - 1]?.event || 1;
@@ -789,7 +802,23 @@ export async function fetchTransferHistory() {
   const transfers = [];
   for (const gwData of playedGws) {
     const gw = gwData.event;
-    const prevGw = allGwIds[allGwIds.indexOf(gw) - 1];
+    const gwIdx = allGwIds.indexOf(gw);
+
+    // Determine the correct "previous GW" to compare against
+    let prevGw = null;
+    if (chipByGw[gw] === 'freehit') {
+      // Free Hit GW: compare to immediately previous GW to detect temporary changes
+      prevGw = gwIdx > 0 ? allGwIds[gwIdx - 1] : null;
+    } else {
+      // Normal / Wildcard GW: skip any Free Hit GWs when finding previous squad
+      // (Free Hit squads revert, so comparing against them would detect reversions as transfers)
+      for (let j = gwIdx - 1; j >= 0; j--) {
+        if (!freeHitGws.has(allGwIds[j])) {
+          prevGw = allGwIds[j];
+          break;
+        }
+      }
+    }
     if (!prevGw || !picksMap[prevGw] || !picksMap[gw]) continue;
 
     const prevIds = new Set(picksMap[prevGw].picks.map((p) => p.element));
@@ -807,7 +836,8 @@ export async function fetchTransferHistory() {
 
       transfers.push({
         gameweek: gw,
-        transferCost: gwData.event_transfers_cost,
+        transferCost: chipByGw[gw] ? 0 : gwData.event_transfers_cost,
+        chip: chipByGw[gw] || null,
         playerIn: {
           id: pIn.id,
           name: pIn.web_name,
@@ -918,7 +948,7 @@ export async function fetchTransferHistory() {
   // Sort by most recent first
   transfers.sort((a, b) => b.gameweek - a.gameweek);
 
-  return { transfers, teams };
+  return { transfers, teams, chips: history.chips || [] };
 }
 
 /* ── analyzeTransfer ──────────────────────────────────────── */
