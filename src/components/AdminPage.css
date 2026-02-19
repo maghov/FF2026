@@ -25,14 +25,14 @@
   text-align: center;
 }
 
-.stat-value {
+.admin-stat-value {
   font-size: 2rem;
   font-weight: 800;
   color: var(--primary);
   line-height: 1.1;
 }
 
-.stat-label {
+.admin-stat-label {
   font-size: 0.8rem;
   font-weight: 600;
   color: var(--text-secondary);
@@ -141,6 +141,64 @@
 .admin-table .mono {
   font-family: "SF Mono", "Fira Code", monospace;
   font-size: 0.8rem;
+}
+
+/* xPts Prediction Tracker */
+.admin-xpts-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.admin-xpts-empty {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+.admin-xpts-club {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.admin-xpts-higher {
+  color: var(--primary);
+  font-weight: 700;
+}
+
+.admin-xpts-correct {
+  color: var(--positive);
+  font-weight: 700;
+}
+
+.admin-xpts-wrong {
+  color: var(--negative);
+  font-weight: 700;
+}
+
+.admin-xpts-badge {
+  display: inline-block;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.admin-xpts-badge-correct {
+  background: var(--positive-bg);
+  color: var(--positive);
+}
+
+.admin-xpts-badge-wrong {
+  background: var(--negative-bg);
+  color: var(--negative);
+}
+
+.admin-xpts-badge-pending {
+  background: var(--primary-bg, rgba(94, 114, 228, 0.12));
+  color: var(--primary);
 }
 
 @media (max-width: 600px) {

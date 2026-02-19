@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 
-export function useApi(fetchFn, autoRefreshMs = null) {
+export function useApi(fetchFn, deps = [], autoRefreshMs = null) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -16,7 +16,8 @@ export function useApi(fetchFn, autoRefreshMs = null) {
     } finally {
       setLoading(false);
     }
-  }, [fetchFn]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fetchFn, ...deps]);
 
   useEffect(() => {
     load();

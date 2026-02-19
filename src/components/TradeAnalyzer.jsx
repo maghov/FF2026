@@ -1,12 +1,14 @@
 import { useState, useMemo } from "react";
 import { useApi } from "../hooks/useApi";
 import { fetchAvailablePlayers, analyzeTransfer } from "../services/api";
+import { calculateMultiGwXpts, rankTransferTargets } from "../services/xpts";
 import LoadingSpinner from "./LoadingSpinner";
 import ErrorMessage from "./ErrorMessage";
 import "./TradeAnalyzer.css";
 
 const POSITIONS = ["All", "GKP", "DEF", "MID", "FWD"];
 const SORT_OPTIONS = [
+  { value: "xpts", label: "xPts" },
   { value: "form", label: "Form" },
   { value: "totalPoints", label: "Total Pts" },
   { value: "price-asc", label: "Price (low)" },
@@ -50,8 +52,15 @@ function PriceTag({ player }) {
 }
 
 function PlayerStatCard({ player, label }) {
+function PlayerStatCard({ player, label, teams }) {
+  const xptsResult = useMemo(() => {
+    if (!player) return null;
+    return calculateMultiGwXpts(player, player.upcomingFixtures, teams, 3);
+  }, [player, teams]);
+
   if (!player) return null;
   const nextFix = player.upcomingFixtures?.[0];
+
   return (
     <div className="player-stat-card">
       <div className="stat-card-header">
@@ -76,6 +85,14 @@ function PlayerStatCard({ player, label }) {
           <span className="sc-label">Price</span>
         </div>
         <div className="stat-card-item">
+          {xptsResult ? (
+            <span className="sc-value trade-xpts-value">{xptsResult.avgXpts}</span>
+          ) : (
+            <span className="sc-value">-</span>
+          )}
+          <span className="sc-label">xPts</span>
+        </div>
+        <div className="stat-card-item">
           {nextFix ? (
             <span className={`sc-value fixture-badge fdr-${nextFix.difficulty}`}>
               {nextFix.opponent}
@@ -86,6 +103,13 @@ function PlayerStatCard({ player, label }) {
           <span className="sc-label">Next</span>
         </div>
       </div>
+      {xptsResult?.topReasons?.length > 0 && (
+        <div className="trade-xpts-reasons">
+          {xptsResult.topReasons.map((r, i) => (
+            <span key={i} className="trade-reason-chip">{r}</span>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -145,7 +169,7 @@ function TradeResult({ result, playerOut, playerIn }) {
 
       <div className="result-metrics">
         <div className="result-metric">
-          <span className="result-label">Projected Points Diff</span>
+          <span className="result-label">Projected xPts Diff</span>
           <span
             className={`result-value ${result.pointsDiff > 0 ? "positive" : result.pointsDiff < 0 ? "negative" : ""}`}
           >
@@ -217,7 +241,7 @@ function TradeResult({ result, playerOut, playerIn }) {
                 width: `${(result.outProjected / Math.max(result.outProjected, result.inProjected)) * 100}%`,
               }}
             >
-              {result.outProjected} pts
+              {result.outProjected} xPts
             </div>
           </div>
         </div>
@@ -230,15 +254,74 @@ function TradeResult({ result, playerOut, playerIn }) {
                 width: `${(result.inProjected / Math.max(result.outProjected, result.inProjected)) * 100}%`,
               }}
             >
-              {result.inProjected} pts
+              {result.inProjected} xPts
             </div>
           </div>
         </div>
       </div>
 
+      {(result.inReasons?.length > 0 || result.outReasons?.length > 0) && (
+        <div className="trade-reasons-section">
+          {result.inReasons?.length > 0 && (
+            <div className="trade-reasons-group">
+              <span className="trade-reasons-label">{playerIn.name}</span>
+              <div className="trade-reasons-chips">
+                {result.inReasons.map((r, i) => (
+                  <span key={i} className="trade-reason-chip positive">{r}</span>
+                ))}
+              </div>
+            </div>
+          )}
+          {result.outReasons?.length > 0 && (
+            <div className="trade-reasons-group">
+              <span className="trade-reasons-label">{playerOut.name}</span>
+              <div className="trade-reasons-chips">
+                {result.outReasons.map((r, i) => (
+                  <span key={i} className="trade-reason-chip">{r}</span>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       <div className="ai-explanation">
         <div className="explanation-header">Analysis</div>
         <p>{result.explanation}</p>
+      </div>
+    </div>
+  );
+}
+
+function TopPicks({ picks, onSelect }) {
+  if (!picks || picks.length === 0) return null;
+  return (
+    <div className="trade-top-picks">
+      <h4>Top Picks by xPts</h4>
+      <div className="top-picks-grid">
+        {picks.map((p) => (
+          <button
+            key={p.id}
+            className="top-pick-card"
+            onClick={() => onSelect(p.id)}
+          >
+            <div className="top-pick-header">
+              <span className={`position-badge position-${p.position}`}>{p.position}</span>
+              <span className="top-pick-xpts">{p.xpts} xPts</span>
+            </div>
+            <div className="top-pick-name">{p.name}</div>
+            <div className="top-pick-meta">
+              {p.clubShort} · £{p.price}m · {p.form} form
+            </div>
+            {p.topReasons?.length > 0 && (
+              <div className="top-pick-reasons">
+                {p.topReasons.slice(0, 2).map((r, i) => (
+                  <span key={i} className="trade-reason-chip small">{r}</span>
+                ))}
+              </div>
+            )}
+          </button>
+        ))}
       </div>
     </div>
   );
@@ -250,10 +333,10 @@ export default function TradeAnalyzer({ teamData, teamLoading, teamError, teamRe
   const [gameweeks, setGameweeks] = useState(3);
   const [posFilter, setPosFilter] = useState("All");
   const [maxPrice, setMaxPrice] = useState("");
-  const [sortBy, setSortBy] = useState("form");
+  const [sortBy, setSortBy] = useState("xpts");
 
   const {
-    data: available,
+    data: availableData,
     loading: aLoading,
     error: aError,
   } = useApi(fetchAvailablePlayers);
@@ -261,13 +344,16 @@ export default function TradeAnalyzer({ teamData, teamLoading, teamError, teamRe
   const loading = teamLoading || aLoading;
   const error = teamError || aError;
 
+  const available = useMemo(() => availableData?.candidates || [], [availableData]);
+  const teams = useMemo(() => availableData?.teams || teamData?.teams || {}, [availableData, teamData]);
+
   const playerOut = useMemo(
     () => teamData?.players.find((p) => p.id === playerOutId),
     [teamData, playerOutId]
   );
 
   const filteredAvailable = useMemo(() => {
-    if (!available) return [];
+    if (!available.length) return [];
     let list = available;
 
     if (posFilter !== "All") {
@@ -281,6 +367,10 @@ export default function TradeAnalyzer({ teamData, teamLoading, teamError, teamRe
 
     const sorted = [...list];
     switch (sortBy) {
+      case "xpts": {
+        const ranked = rankTransferTargets(sorted, teams, gameweeks);
+        return ranked;
+      }
       case "form":
         sorted.sort((a, b) => b.form - a.form);
         break;
@@ -302,17 +392,27 @@ export default function TradeAnalyzer({ teamData, teamLoading, teamError, teamRe
     }
 
     return sorted;
-  }, [available, posFilter, maxPrice, sortBy]);
+  }, [available, posFilter, maxPrice, sortBy, teams, gameweeks]);
 
   const playerIn = useMemo(
-    () => available?.find((p) => p.id === playerInId),
+    () => available.find((p) => p.id === playerInId),
     [available, playerInId]
   );
 
   const result = useMemo(() => {
     if (!playerOut || !playerIn) return null;
-    return analyzeTransfer(playerOut, playerIn, gameweeks);
-  }, [playerOut, playerIn, gameweeks]);
+    return analyzeTransfer(playerOut, playerIn, gameweeks, teams);
+  }, [playerOut, playerIn, gameweeks, teams]);
+
+  // Top 3 picks for the position being filtered (or overall)
+  const topPicks = useMemo(() => {
+    if (!available.length) return [];
+    let pool = available;
+    if (posFilter !== "All") {
+      pool = pool.filter((p) => p.position === posFilter);
+    }
+    return rankTransferTargets(pool, teams, gameweeks).slice(0, 3);
+  }, [available, posFilter, teams, gameweeks]);
 
   function handlePlayerOutChange(id) {
     setPlayerOutId(id);
@@ -409,9 +509,9 @@ export default function TradeAnalyzer({ teamData, teamLoading, teamError, teamRe
         <div className="stat-cards-column">
           {playerOut || playerIn ? (
             <>
-              <PlayerStatCard player={playerOut} label="OUT" />
+              <PlayerStatCard player={playerOut} label="OUT" teams={teams} />
               {playerOut && playerIn && <div className="versus-icon">vs</div>}
-              <PlayerStatCard player={playerIn} label="IN" />
+              <PlayerStatCard player={playerIn} label="IN" teams={teams} />
             </>
           ) : (
             <div className="versus-card">
@@ -440,10 +540,13 @@ export default function TradeAnalyzer({ teamData, teamLoading, teamError, teamRe
       )}
 
       {!playerOutId && !playerInId && (
-        <div className="trade-placeholder">
-          <div className="placeholder-icon">&#8644;</div>
-          <p>Select players above to analyze a potential transfer</p>
-        </div>
+        <>
+          <TopPicks picks={topPicks} onSelect={setPlayerInId} />
+          <div className="trade-placeholder">
+            <div className="placeholder-icon">&#8644;</div>
+            <p>Select players above to analyze a potential transfer</p>
+          </div>
+        </>
       )}
     </div>
   );
