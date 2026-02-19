@@ -666,7 +666,31 @@
     gap: 0.5rem;
   }
 
+  .pc-header h2 {
+    font-size: 1.1rem;
+  }
+
   .pc-cd-digits {
     font-size: 1rem;
+  }
+
+  .pc-section {
+    padding: 0.75rem;
+  }
+
+  .pc-pills {
+    gap: 0.35rem;
+  }
+
+  .pc-pill {
+    padding: 0.3rem 0.6rem;
+  }
+
+  .pc-pill-num {
+    font-size: 0.85rem;
+  }
+
+  .pc-name {
+    font-size: 0.72rem;
   }
 }

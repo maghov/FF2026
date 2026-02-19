@@ -378,7 +378,7 @@
 }
 
 .proj-label {
-  width: 100px;
+  width: clamp(70px, 15vw, 100px);
   font-size: 0.8rem;
   font-weight: 600;
   color: var(--text-primary);
@@ -1130,5 +1130,56 @@
 
   .ta-hcard-comparison {
     grid-template-columns: 1fr;
+  }
+
+  .controls-card {
+    padding: 1rem;
+  }
+
+  .trade-result {
+    padding: 1rem;
+  }
+
+  .ta-tabs {
+    width: 100%;
+  }
+
+  .ta-tab {
+    flex: 1;
+    text-align: center;
+    padding: 0.45rem 0.75rem;
+    font-size: 0.8rem;
+  }
+
+  .result-value {
+    font-size: 0.95rem;
+  }
+
+  .projection-bar {
+    gap: 0.5rem;
+  }
+
+  .proj-label {
+    font-size: 0.7rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .result-metrics {
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem;
+  }
+
+  .result-metric {
+    padding: 0.5rem;
+  }
+
+  .recommendation-badge {
+    font-size: 0.8rem;
+    padding: 0.3rem 0.75rem;
+  }
+
+  .ta-hcard {
+    padding: 0.75rem;
   }
 }
