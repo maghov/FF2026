@@ -847,10 +847,28 @@ export async function fetchTransferHistory() {
   // Now calculate points for each transfer from the transfer GW onwards
   const currentGw = Math.max(...allGwIds);
 
+  // Determine when each playerIn left the squad (handles repeated transfers)
+  const sortedGwIds = [...allGwIds].sort((a, b) => a - b);
+  for (const t of transfers) {
+    t.endGameweek = currentGw;
+    let lastInGw = t.gameweek;
+    const startIdx = sortedGwIds.indexOf(t.gameweek);
+    for (let i = startIdx + 1; i < sortedGwIds.length; i++) {
+      const gw = sortedGwIds[i];
+      if (!picksMap[gw]) continue;
+      if (picksMap[gw].picks.some((p) => p.element === t.playerIn.id)) {
+        lastInGw = gw;
+      } else {
+        t.endGameweek = lastInGw;
+        break;
+      }
+    }
+  }
+
   // Collect all unique GWs we need, then batch-fetch them
   const gwsNeeded = new Set();
   for (const t of transfers) {
-    for (let gw = t.gameweek; gw <= currentGw; gw++) {
+    for (let gw = t.gameweek; gw <= t.endGameweek; gw++) {
       gwsNeeded.add(gw);
     }
   }
@@ -871,7 +889,7 @@ export async function fetchTransferHistory() {
     let outPoints = 0;
     const gwBreakdown = [];
 
-    for (let gw = t.gameweek; gw <= currentGw; gw++) {
+    for (let gw = t.gameweek; gw <= t.endGameweek; gw++) {
       const live = liveCache[gw];
       if (!live) continue;
 
