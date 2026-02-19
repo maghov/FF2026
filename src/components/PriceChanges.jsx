@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useApi } from "../hooks/useApi";
 import { fetchPriceChanges } from "../services/api";
 import { clearBootstrapCache } from "../services/fplApi";
@@ -12,117 +12,52 @@ const VIEWS = [
   { id: "season", label: "Season" },
 ];
 
-function formatDeadline(isoString) {
-  if (!isoString) return null;
-  const d = new Date(isoString);
-  return d.toLocaleDateString("en-GB", {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
-
-function getTimeUntil(isoString) {
-  if (!isoString) return null;
-  const now = new Date();
-  const deadline = new Date(isoString);
-  const diff = deadline - now;
-  if (diff <= 0) return "Passed";
-
-  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-  const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-  const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-
-  if (days > 0) return `${days}d ${hours}h`;
-  if (hours > 0) return `${hours}h ${mins}m`;
-  return `${mins}m`;
-}
-
-function getNextPriceChange() {
-  // FPL prices change daily at ~2:30 AM UK time
-  const now = new Date();
-  const ukOffset = getUKOffset();
-  const ukNow = new Date(now.getTime() + ukOffset);
-
-  const next = new Date(ukNow);
-  next.setHours(2, 30, 0, 0);
-  if (ukNow.getHours() >= 3) {
-    next.setDate(next.getDate() + 1);
-  }
-
-  // Convert back to local
-  const local = new Date(next.getTime() - ukOffset);
-  return local;
-}
+/* ── Timing helpers ──────────────────────────────────── */
 
 function getUKOffset() {
-  // Approximate BST/GMT: BST is last Sunday of March to last Sunday of October
   const now = new Date();
   const year = now.getFullYear();
   const marchLast = new Date(year, 2, 31);
   const bstStart = new Date(year, 2, 31 - marchLast.getDay(), 1, 0);
   const octLast = new Date(year, 9, 31);
   const bstEnd = new Date(year, 9, 31 - octLast.getDay(), 1, 0);
-
   const isBST = now >= bstStart && now < bstEnd;
   const ukOffsetMs = isBST ? 1 * 60 * 60 * 1000 : 0;
   const localOffsetMs = now.getTimezoneOffset() * 60 * 1000;
   return ukOffsetMs + localOffsetMs;
 }
 
-function DeadlineBanner({ deadline, nextGw, currentGw }) {
-  const nextPrice = getNextPriceChange();
-  const priceCountdown = getTimeUntil(nextPrice.toISOString());
-  const deadlineCountdown = getTimeUntil(deadline);
-  const deadlineFormatted = formatDeadline(deadline);
-
-  return (
-    <div className="pc-deadline-banner">
-      <div className="pc-deadline-item">
-        <div className="pc-deadline-icon">{"\u23F0"}</div>
-        <div className="pc-deadline-info">
-          <span className="pc-deadline-title">Next Price Change</span>
-          <span className="pc-deadline-value">
-            ~{nextPrice.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} today
-          </span>
-          <span className="pc-deadline-countdown">{priceCountdown}</span>
-        </div>
-      </div>
-      <div className="pc-deadline-divider" />
-      <div className="pc-deadline-item">
-        <div className="pc-deadline-icon">{"\u{1F6A8}"}</div>
-        <div className="pc-deadline-info">
-          <span className="pc-deadline-title">GW{nextGw} Transfer Deadline</span>
-          <span className="pc-deadline-value">{deadlineFormatted || "TBD"}</span>
-          <span className={`pc-deadline-countdown ${deadlineCountdown && !deadlineCountdown.includes("d") ? "pc-deadline-urgent" : ""}`}>
-            {deadlineCountdown || "—"}
-          </span>
-        </div>
-      </div>
-      <div className="pc-deadline-divider" />
-      <div className="pc-deadline-item">
-        <div className="pc-deadline-icon">{"\u{1F4C5}"}</div>
-        <div className="pc-deadline-info">
-          <span className="pc-deadline-title">Current Gameweek</span>
-          <span className="pc-deadline-value">GW{currentGw}</span>
-        </div>
-      </div>
-    </div>
-  );
+function getNextPriceChange() {
+  const now = new Date();
+  const ukOffset = getUKOffset();
+  const ukNow = new Date(now.getTime() + ukOffset);
+  const next = new Date(ukNow);
+  next.setHours(2, 30, 0, 0);
+  if (ukNow.getHours() >= 3) next.setDate(next.getDate() + 1);
+  return new Date(next.getTime() - ukOffset);
 }
 
-function PressureBadge({ pressure }) {
-  const config = {
-    rising: { label: "Rising", cls: "pc-badge-rising" },
-    "likely-rising": { label: "Likely Rising", cls: "pc-badge-likely-rising" },
-    falling: { label: "Falling", cls: "pc-badge-falling" },
-    "likely-falling": { label: "Likely Falling", cls: "pc-badge-likely-falling" },
+function getTimeParts(isoString) {
+  if (!isoString) return null;
+  const diff = new Date(isoString) - new Date();
+  if (diff <= 0) return { label: "PASSED", d: 0, h: 0, m: 0, s: 0 };
+  return {
+    d: Math.floor(diff / 86400000),
+    h: Math.floor((diff % 86400000) / 3600000),
+    m: Math.floor((diff % 3600000) / 60000),
+    s: Math.floor((diff % 60000) / 1000),
   };
-  const c = config[pressure];
-  if (!c) return null;
-  return <span className={`pc-badge ${c.cls}`}>{c.label}</span>;
+}
+
+function formatDeadlineDate(isoString) {
+  if (!isoString) return "TBD";
+  return new Date(isoString).toLocaleDateString("en-GB", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
 function formatTransfers(num) {
@@ -132,79 +67,186 @@ function formatTransfers(num) {
   return num.toString();
 }
 
-function PlayerRow({ player, showPressure }) {
-  const isPositive = player.netTransfersEvent > 0 || player.costChangeEvent > 0 || player.costChangeStart > 0;
+/* ── Countdown digits ────────────────────────────────── */
+
+function CountdownUnit({ value, label }) {
+  return (
+    <div className="pc-cd-unit">
+      <span className="pc-cd-digits">{String(value).padStart(2, "0")}</span>
+      <span className="pc-cd-label">{label}</span>
+    </div>
+  );
+}
+
+function LiveCountdown({ iso, accent }) {
+  const [parts, setParts] = useState(() => getTimeParts(iso));
+
+  useEffect(() => {
+    const id = setInterval(() => setParts(getTimeParts(iso)), 1000);
+    return () => clearInterval(id);
+  }, [iso]);
+
+  if (!parts) return <span className="pc-cd-tbd">--:--</span>;
+  if (parts.label === "PASSED") return <span className="pc-cd-passed">PASSED</span>;
+
+  const isUrgent = parts.d === 0 && parts.h < 6;
 
   return (
-    <div className="pc-player-row">
-      <div className="pc-player-info">
-        <span className={`position-badge position-${player.position}`}>
-          {player.position}
+    <div className={`pc-cd ${accent} ${isUrgent ? "pc-cd-urgent" : ""}`}>
+      {parts.d > 0 && <><CountdownUnit value={parts.d} label="d" /><span className="pc-cd-sep">:</span></>}
+      <CountdownUnit value={parts.h} label="h" />
+      <span className="pc-cd-sep">:</span>
+      <CountdownUnit value={parts.m} label="m" />
+      <span className="pc-cd-sep">:</span>
+      <CountdownUnit value={parts.s} label="s" />
+    </div>
+  );
+}
+
+/* ── Deadline strip ──────────────────────────────────── */
+
+function DeadlineStrip({ deadline, nextGw, currentGw }) {
+  const nextPrice = getNextPriceChange();
+
+  return (
+    <div className="pc-strip">
+      <div className="pc-strip-cell">
+        <span className="pc-strip-label">Next Price Change</span>
+        <LiveCountdown iso={nextPrice.toISOString()} accent="pc-accent-amber" />
+      </div>
+      <div className="pc-strip-divider" />
+      <div className="pc-strip-cell">
+        <span className="pc-strip-label">
+          GW{nextGw} Deadline
+          <span className="pc-strip-date">{formatDeadlineDate(deadline)}</span>
         </span>
-        <div className="pc-player-details">
-          <span className="pc-player-name">{player.name}</span>
-          <span className="pc-player-meta">{player.clubShort} &middot; {player.form} form &middot; {player.selectedByPercent}%</span>
+        <LiveCountdown iso={deadline} accent="pc-accent-red" />
+      </div>
+      <div className="pc-strip-divider" />
+      <div className="pc-strip-cell pc-strip-cell-sm">
+        <span className="pc-strip-label">Gameweek</span>
+        <span className="pc-strip-gw">{currentGw}</span>
+      </div>
+    </div>
+  );
+}
+
+/* ── Activity bar ────────────────────────────────────── */
+
+function ActivityBar({ value, max, direction }) {
+  const pct = max > 0 ? Math.min(Math.abs(value) / max * 100, 100) : 0;
+  return (
+    <div className="pc-bar-track">
+      <div
+        className={`pc-bar-fill ${direction === "in" ? "pc-bar-green" : "pc-bar-red"}`}
+        style={{ width: `${pct}%` }}
+      />
+    </div>
+  );
+}
+
+/* ── Player row ──────────────────────────────────────── */
+
+function PlayerRow({ player, rank, maxNet, direction, delay }) {
+  return (
+    <div className="pc-row" style={{ animationDelay: `${delay}ms` }}>
+      <span className="pc-rank">{rank}</span>
+      <div className="pc-player-col">
+        <span className={`position-badge position-${player.position}`}>{player.position}</span>
+        <div className="pc-player-text">
+          <span className="pc-name">{player.name}</span>
+          <span className="pc-meta">{player.clubShort} &middot; {player.selectedByPercent}%</span>
         </div>
       </div>
-      <div className="pc-player-price">
-        <span className="pc-price-value">&pound;{player.price}m</span>
+      <div className="pc-price-col">
+        <span className="pc-price">&pound;{player.price}m</span>
         {player.costChangeEvent !== 0 && (
-          <span className={`pc-price-change ${player.costChangeEvent > 0 ? "positive" : "negative"}`}>
-            {player.costChangeEvent > 0 ? "+" : ""}&pound;{player.costChangeEvent.toFixed(1)}
+          <span className={`pc-delta ${player.costChangeEvent > 0 ? "pc-up" : "pc-down"}`}>
+            {player.costChangeEvent > 0 ? "+" : ""}{player.costChangeEvent.toFixed(1)}
           </span>
         )}
       </div>
-      <div className="pc-player-transfers">
-        <span className={`pc-transfers-value ${isPositive ? "positive" : "negative"}`}>
+      <div className="pc-activity-col">
+        <span className={`pc-net ${direction === "in" ? "pc-up" : "pc-down"}`}>
           {player.netTransfersEvent > 0 ? "+" : ""}{formatTransfers(player.netTransfersEvent)}
         </span>
-        <span className="pc-transfers-label">net</span>
+        <ActivityBar value={player.netTransfersEvent} max={maxNet} direction={direction} />
       </div>
-      <div className="pc-player-fixture">
-        <span className={`fixture-badge fdr-${player.nextDifficulty}`}>
-          {player.nextFixture}
-        </span>
+      <div className="pc-form-col">
+        <span className="pc-form-val">{player.form}</span>
       </div>
-      {showPressure && (
-        <div className="pc-player-status">
-          <PressureBadge pressure={player.pricePressure} />
-        </div>
-      )}
+      <span className={`pc-fix fixture-badge fdr-${player.nextDifficulty}`}>
+        {player.nextFixture}
+      </span>
+      <span className={`pc-signal ${direction === "in" ? "pc-signal-rise" : "pc-signal-fall"} ${player.pricePressure === "rising" || player.pricePressure === "falling" ? "pc-signal-strong" : ""}`}>
+        {direction === "in" ? "\u25B2" : "\u25BC"}
+      </span>
     </div>
   );
 }
 
-function SeasonRow({ player, type }) {
-  const change = type === "risers" ? player.costChangeStart : player.costChangeStart;
+/* ── Season row ──────────────────────────────────────── */
 
+function SeasonRow({ player, rank, type, delay }) {
+  const change = player.costChangeStart;
   return (
-    <div className="pc-player-row">
-      <div className="pc-player-info">
-        <span className={`position-badge position-${player.position}`}>
-          {player.position}
-        </span>
-        <div className="pc-player-details">
-          <span className="pc-player-name">{player.name}</span>
-          <span className="pc-player-meta">{player.clubShort} &middot; {player.totalPoints} pts &middot; {player.selectedByPercent}%</span>
+    <div className="pc-row" style={{ animationDelay: `${delay}ms` }}>
+      <span className="pc-rank">{rank}</span>
+      <div className="pc-player-col">
+        <span className={`position-badge position-${player.position}`}>{player.position}</span>
+        <div className="pc-player-text">
+          <span className="pc-name">{player.name}</span>
+          <span className="pc-meta">{player.clubShort} &middot; {player.totalPoints} pts</span>
         </div>
       </div>
-      <div className="pc-player-price">
-        <span className="pc-price-value">&pound;{player.price}m</span>
-        <span className="pc-start-price">from &pound;{player.startPrice.toFixed(1)}m</span>
+      <div className="pc-price-col">
+        <span className="pc-price">&pound;{player.price}m</span>
+        <span className="pc-from">was &pound;{player.startPrice.toFixed(1)}</span>
       </div>
-      <div className="pc-player-transfers">
-        <span className={`pc-season-change ${change > 0 ? "positive" : "negative"}`}>
+      <div className="pc-activity-col">
+        <span className={`pc-season-delta ${change > 0 ? "pc-up" : "pc-down"}`}>
           {change > 0 ? "+" : ""}&pound;{change.toFixed(1)}m
         </span>
       </div>
-      <div className="pc-player-fixture">
-        <span className={`fixture-badge fdr-${player.nextDifficulty}`}>
-          {player.nextFixture}
-        </span>
+      <div className="pc-form-col">
+        <span className="pc-form-val">{player.form}</span>
       </div>
+      <span className={`pc-fix fixture-badge fdr-${player.nextDifficulty}`}>
+        {player.nextFixture}
+      </span>
+      <span className={`pc-signal ${type === "risers" ? "pc-signal-rise" : "pc-signal-fall"}`}>
+        {type === "risers" ? "\u25B2" : "\u25BC"}
+      </span>
     </div>
   );
 }
+
+/* ── Section ─────────────────────────────────────────── */
+
+function Section({ title, count, accent, hint, children }) {
+  return (
+    <div className={`pc-section ${accent}`}>
+      <div className="pc-section-head">
+        <div className="pc-section-accent" />
+        <h3>{title}</h3>
+        {count != null && <span className="pc-count">{count}</span>}
+      </div>
+      {hint && <p className="pc-hint">{hint}</p>}
+      <div className="pc-table-header">
+        <span className="pc-th pc-th-rank">#</span>
+        <span className="pc-th pc-th-player">Player</span>
+        <span className="pc-th pc-th-price">Price</span>
+        <span className="pc-th pc-th-activity">Activity</span>
+        <span className="pc-th pc-th-form">Form</span>
+        <span className="pc-th pc-th-fix">Next</span>
+        <span className="pc-th pc-th-signal" />
+      </div>
+      {children}
+    </div>
+  );
+}
+
+/* ── Main component ──────────────────────────────────── */
 
 export default function PriceChanges() {
   const [view, setView] = useState("predicted");
@@ -220,40 +262,54 @@ export default function PriceChanges() {
 
   const { rising, falling, recentChanges, biggestRisers, biggestFallers, currentGw, nextGw, deadline, lastUpdated } = data;
 
+  const maxRisingNet = rising.length > 0 ? Math.max(...rising.map((p) => Math.abs(p.netTransfersEvent))) : 1;
+  const maxFallingNet = falling.length > 0 ? Math.max(...falling.map((p) => Math.abs(p.netTransfersEvent))) : 1;
+  const maxRecentNet = recentChanges.length > 0 ? Math.max(...recentChanges.map((p) => Math.abs(p.netTransfersEvent))) : 1;
+
   return (
     <div className="price-changes">
+      {/* Header */}
       <div className="pc-header">
         <div className="pc-header-left">
-          <h2>Price Changes</h2>
-          <span className="pc-updated">Updated {lastUpdated}</span>
+          <h2>
+            <span className="pc-live-dot" />
+            Price Tracker
+          </h2>
+          <span className="pc-updated">{lastUpdated}</span>
         </div>
-        <button className="btn btn-secondary pc-refresh-btn" onClick={handleRefresh}>
+        <button className="pc-refresh" onClick={handleRefresh}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="23 4 23 10 17 10" /><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+          </svg>
           Refresh
         </button>
       </div>
 
-      <DeadlineBanner deadline={deadline} nextGw={nextGw} currentGw={currentGw} />
+      {/* Deadline strip */}
+      <DeadlineStrip deadline={deadline} nextGw={nextGw} currentGw={currentGw} />
 
-      <div className="pc-summary-row">
-        <div className="pc-summary-card pc-summary-rising">
-          <span className="pc-summary-count">{rising.length}</span>
-          <span className="pc-summary-label">Predicted to Rise</span>
+      {/* Stat pills */}
+      <div className="pc-pills">
+        <div className="pc-pill pc-pill-rise">
+          <span className="pc-pill-num">{rising.length}</span>
+          <span className="pc-pill-label">Rising</span>
         </div>
-        <div className="pc-summary-card pc-summary-falling">
-          <span className="pc-summary-count">{falling.length}</span>
-          <span className="pc-summary-label">Predicted to Fall</span>
+        <div className="pc-pill pc-pill-fall">
+          <span className="pc-pill-num">{falling.length}</span>
+          <span className="pc-pill-label">Falling</span>
         </div>
-        <div className="pc-summary-card pc-summary-changed">
-          <span className="pc-summary-count">{recentChanges.length}</span>
-          <span className="pc-summary-label">Changed This GW</span>
+        <div className="pc-pill pc-pill-changed">
+          <span className="pc-pill-num">{recentChanges.length}</span>
+          <span className="pc-pill-label">Changed</span>
         </div>
       </div>
 
-      <div className="pc-view-tabs">
+      {/* View switcher */}
+      <div className="pc-views">
         {VIEWS.map((v) => (
           <button
             key={v.id}
-            className={`pc-view-tab ${view === v.id ? "active" : ""}`}
+            className={`pc-view-btn ${view === v.id ? "active" : ""}`}
             onClick={() => setView(v.id)}
           >
             {v.label}
@@ -261,82 +317,64 @@ export default function PriceChanges() {
         ))}
       </div>
 
+      {/* ── Predicted ── */}
       {view === "predicted" && (
-        <div className="pc-sections">
-          <div className="pc-section">
-            <div className="pc-section-header pc-section-buy">
-              <span className="pc-section-icon">{"\u25B2"}</span>
-              <h3>Buy Before Price Rise</h3>
-              <span className="pc-section-count">{rising.length}</span>
-            </div>
-            <p className="pc-section-hint">Players with high transfer-in activity — price rise expected</p>
-            <div className="pc-player-list">
-              {rising.length === 0 ? (
-                <p className="pc-empty">No predicted price rises right now</p>
-              ) : (
-                rising.map((p) => <PlayerRow key={p.id} player={p} showPressure />)
-              )}
-            </div>
-          </div>
-
-          <div className="pc-section">
-            <div className="pc-section-header pc-section-sell">
-              <span className="pc-section-icon">{"\u25BC"}</span>
-              <h3>Sell Before Price Drop</h3>
-              <span className="pc-section-count">{falling.length}</span>
-            </div>
-            <p className="pc-section-hint">Players losing ownership fast — price drop expected</p>
-            <div className="pc-player-list">
-              {falling.length === 0 ? (
-                <p className="pc-empty">No predicted price drops right now</p>
-              ) : (
-                falling.map((p) => <PlayerRow key={p.id} player={p} showPressure />)
-              )}
-            </div>
-          </div>
-        </div>
+        <>
+          <Section title="Buy Before Rise" count={rising.length} accent="pc-sec-green" hint="High transfer-in volume — price increase expected">
+            {rising.length === 0 ? (
+              <p className="pc-empty">No predicted rises right now</p>
+            ) : (
+              rising.map((p, i) => (
+                <PlayerRow key={p.id} player={p} rank={i + 1} maxNet={maxRisingNet} direction="in" delay={i * 30} />
+              ))
+            )}
+          </Section>
+          <Section title="Sell Before Drop" count={falling.length} accent="pc-sec-red" hint="Losing ownership fast — price drop expected">
+            {falling.length === 0 ? (
+              <p className="pc-empty">No predicted drops right now</p>
+            ) : (
+              falling.map((p, i) => (
+                <PlayerRow key={p.id} player={p} rank={i + 1} maxNet={maxFallingNet} direction="out" delay={i * 30} />
+              ))
+            )}
+          </Section>
+        </>
       )}
 
+      {/* ── This GW ── */}
       {view === "recent" && (
-        <div className="pc-sections">
-          <div className="pc-section">
-            <div className="pc-section-header">
-              <h3>Price Changes This Gameweek</h3>
-              <span className="pc-section-count">{recentChanges.length}</span>
-            </div>
-            <div className="pc-player-list">
-              {recentChanges.length === 0 ? (
-                <p className="pc-empty">No price changes this gameweek yet</p>
-              ) : (
-                recentChanges.map((p) => <PlayerRow key={p.id} player={p} showPressure={false} />)
-              )}
-            </div>
-          </div>
-        </div>
+        <Section title="Price Changes This GW" count={recentChanges.length} accent="pc-sec-neutral">
+          {recentChanges.length === 0 ? (
+            <p className="pc-empty">No price changes yet this gameweek</p>
+          ) : (
+            recentChanges.map((p, i) => (
+              <PlayerRow
+                key={p.id}
+                player={p}
+                rank={i + 1}
+                maxNet={maxRecentNet}
+                direction={p.costChangeEvent > 0 ? "in" : "out"}
+                delay={i * 30}
+              />
+            ))
+          )}
+        </Section>
       )}
 
+      {/* ── Season ── */}
       {view === "season" && (
-        <div className="pc-sections">
-          <div className="pc-section">
-            <div className="pc-section-header pc-section-buy">
-              <span className="pc-section-icon">{"\u25B2"}</span>
-              <h3>Biggest Risers</h3>
-            </div>
-            <div className="pc-player-list">
-              {biggestRisers.map((p) => <SeasonRow key={p.id} player={p} type="risers" />)}
-            </div>
-          </div>
-
-          <div className="pc-section">
-            <div className="pc-section-header pc-section-sell">
-              <span className="pc-section-icon">{"\u25BC"}</span>
-              <h3>Biggest Fallers</h3>
-            </div>
-            <div className="pc-player-list">
-              {biggestFallers.map((p) => <SeasonRow key={p.id} player={p} type="fallers" />)}
-            </div>
-          </div>
-        </div>
+        <>
+          <Section title="Biggest Risers" accent="pc-sec-green">
+            {biggestRisers.map((p, i) => (
+              <SeasonRow key={p.id} player={p} rank={i + 1} type="risers" delay={i * 30} />
+            ))}
+          </Section>
+          <Section title="Biggest Fallers" accent="pc-sec-red">
+            {biggestFallers.map((p, i) => (
+              <SeasonRow key={p.id} player={p} rank={i + 1} type="fallers" delay={i * 30} />
+            ))}
+          </Section>
+        </>
       )}
     </div>
   );
