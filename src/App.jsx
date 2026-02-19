@@ -120,7 +120,7 @@ function Dashboard() {
         {activeTab === "admin" && isAdmin && <AdminPage />}
       </main>
 
-      <div className="version-label">v0.06</div>
+      <div className="version-label">v0.07</div>
     </div>
   );
 }

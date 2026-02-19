@@ -749,19 +749,32 @@
   margin-bottom: 0.5rem;
 }
 
-@media (max-width: 600px) {
+@media (max-width: 640px) {
   .transfer-stats {
     grid-template-columns: repeat(2, 1fr);
+    gap: 0.5rem;
+  }
+
+  .transfer-stat-value {
+    font-size: 1.3rem;
   }
 
   .transfer-player-name {
     font-size: 0.8rem;
   }
 
+  .transfer-card {
+    padding: 0.75rem;
+  }
+
   .breakdown-header,
   .breakdown-row {
     grid-template-columns: 32px 1fr 1fr 44px;
     font-size: 0.72rem;
+  }
+
+  .cumulative-section {
+    padding: 1rem;
   }
 
   .cumulative-chart {
@@ -786,5 +799,10 @@
   .view-toggle-btn {
     font-size: 0.7rem;
     padding: 0.25rem 0.5rem;
+  }
+
+  .new-transfer-banner {
+    font-size: 0.78rem;
+    padding: 0.6rem 0.75rem;
   }
 }

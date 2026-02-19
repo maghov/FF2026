@@ -108,7 +108,7 @@
 
 .players-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(190px, 100%), 1fr));
   gap: 1rem;
 }
 
@@ -123,6 +123,7 @@
   user-select: none;
   min-width: 0;
   overflow: hidden;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .player-card:hover {
@@ -402,10 +403,34 @@
 
 @media (max-width: 640px) {
   .players-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(auto-fill, minmax(min(160px, 100%), 1fr));
+    gap: 0.75rem;
   }
 
   .summary-grid {
     grid-template-columns: repeat(3, 1fr);
+    gap: 0.75rem;
+  }
+
+  .summary-value {
+    font-size: 1.2rem;
+  }
+
+  .team-summary {
+    padding: 1rem;
+  }
+
+  .team-summary h3 {
+    font-size: 1rem;
+  }
+}
+
+@media (max-width: 380px) {
+  .players-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .summary-grid {
+    grid-template-columns: repeat(2, 1fr);
   }
 }

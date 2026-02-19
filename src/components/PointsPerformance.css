@@ -35,7 +35,7 @@
 
 .metric-value {
   display: block;
-  font-size: 1.8rem;
+  font-size: clamp(1.3rem, 4vw, 1.8rem);
   font-weight: 800;
   color: var(--text-primary);
 }
@@ -55,7 +55,7 @@
 /* Panels */
 .panels-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr));
   gap: 1rem;
 }
 
@@ -275,9 +275,36 @@
 @media (max-width: 640px) {
   .metrics-row {
     grid-template-columns: repeat(2, 1fr);
+    gap: 0.75rem;
+  }
+
+  .metric-card {
+    padding: 1rem;
   }
 
   .panels-grid {
     grid-template-columns: 1fr;
+  }
+
+  .panel {
+    padding: 1rem;
+  }
+
+  .bar-chart {
+    gap: 0.3rem;
+    height: 130px;
+  }
+
+  .bar-value {
+    font-size: 0.55rem;
+  }
+
+  .bar-label {
+    font-size: 0.55rem;
+  }
+
+  .rank-item {
+    grid-template-columns: 40px 1fr 70px;
+    padding: 0.4rem 0.5rem;
   }
 }
