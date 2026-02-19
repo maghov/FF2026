@@ -10,6 +10,8 @@ export function getManagerId() {
 }
 
 let bootstrapCache = null;
+let bootstrapCacheTime = 0;
+const BOOTSTRAP_CACHE_TTL = 30 * 60 * 1000; // 30 minutes
 let fixturesCache = null;
 
 // CORS proxies — tried in parallel, with the last working one remembered
@@ -127,13 +129,20 @@ async function fetchJson(path) {
 }
 
 export async function getBootstrap() {
-  if (!bootstrapCache) {
+  const now = Date.now();
+  if (!bootstrapCache || (now - bootstrapCacheTime) >= BOOTSTRAP_CACHE_TTL) {
     bootstrapCache = fetchJson("bootstrap-static/").catch((err) => {
       bootstrapCache = null;
       throw err;
     });
+    bootstrapCacheTime = now;
   }
   return bootstrapCache;
+}
+
+export function clearBootstrapCache() {
+  bootstrapCache = null;
+  bootstrapCacheTime = 0;
 }
 
 export async function getManagerInfo() {

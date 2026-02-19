@@ -524,6 +524,39 @@
   margin: 0;
 }
 
+/* Price Urgency Alerts */
+.urgency-alert {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 0.85rem;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  margin-bottom: 0.75rem;
+}
+
+.urgency-rising {
+  background: var(--positive-bg);
+  color: var(--positive);
+  border-left: 3px solid var(--positive);
+}
+
+.urgency-falling {
+  background: var(--negative-bg);
+  color: var(--negative);
+  border-left: 3px solid var(--negative);
+}
+
+.urgency-icon {
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+
+.urgency-text {
+  line-height: 1.4;
+}
+
 @media (max-width: 768px) {
   .trade-controls {
     grid-template-columns: 1fr;
