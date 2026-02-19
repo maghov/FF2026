@@ -8,6 +8,12 @@ import {
   getLeagueStandings,
   getManagerId,
 } from "./fplApi";
+import {
+  getUnderstatData,
+  getOddsData,
+  matchUnderstatPlayer,
+  getTeamStrength,
+} from "./externalData";
 
 /* ── helpers ──────────────────────────────────────────────── */
 
@@ -78,14 +84,118 @@ function estimateFreeTransfers(history) {
   return ft;
 }
 
+/**
+ * Extract advanced stats from an FPL bootstrap player element.
+ * The FPL API provides xG, xA, ICT index, and per-90 metrics that
+ * most apps ignore — these are strong predictors of future output.
+ */
+function extractAdvancedStats(p) {
+  return {
+    xG: parseFloat(p.expected_goals) || 0,
+    xA: parseFloat(p.expected_assists) || 0,
+    xGI: parseFloat(p.expected_goal_involvements) || 0,
+    xGC: parseFloat(p.expected_goals_conceded) || 0,
+    xG90: parseFloat(p.expected_goals_per_90) || 0,
+    xA90: parseFloat(p.expected_assists_per_90) || 0,
+    xGI90: parseFloat(p.expected_goal_involvements_per_90) || 0,
+    ictIndex: parseFloat(p.ict_index) || 0,
+    influence: parseFloat(p.influence) || 0,
+    creativity: parseFloat(p.creativity) || 0,
+    threat: parseFloat(p.threat) || 0,
+    pointsPerGame: parseFloat(p.points_per_game) || 0,
+    goalsScored: p.goals_scored || 0,
+    assists: p.assists || 0,
+    cleanSheets: p.clean_sheets || 0,
+    minutes: p.minutes || 0,
+    bonus: p.bonus || 0,
+    bps: p.bps || 0,
+    penaltiesOrder: p.penalties_order || null,
+    cornersOrder: p.corners_and_indirect_freekicks_order || null,
+    directFKOrder: p.direct_freekicks_order || null,
+  };
+}
+
+/**
+ * Compute expected points for a player in a given fixture using a
+ * multi-source blended model. This replaces the old form-only formula
+ * with a weighted combination of:
+ *
+ *   - Form (FPL recent avg)        — captures hot/cold streaks
+ *   - xGI per 90 (FPL)             — underlying attacking quality
+ *   - ICT index per game            — overall match impact
+ *   - Points per game               — actual historical output
+ *   - Fixture difficulty adjustment  — opponent strength
+ *   - Understat xG delta            — over/underperformance signal
+ *   - Betting odds team strength    — bookmaker-derived opponent rating
+ */
+function computeExpectedPoints(fplPlayer, fixtureDifficulty, understatData, oddsData, opponentShortName) {
+  const form = parseFloat(fplPlayer.form) || 0;
+  const ppg = parseFloat(fplPlayer.points_per_game) || 0;
+  const xGI90 = parseFloat(fplPlayer.expected_goal_involvements_per_90) || 0;
+  const ict = parseFloat(fplPlayer.ict_index) || 0;
+  const minutes = fplPlayer.minutes || 0;
+  const games = minutes > 0 ? minutes / 90 : 1;
+
+  // Normalize ICT to a per-game score (ICT is cumulative over the season)
+  const ictPerGame = ict / Math.max(games, 1);
+  // Scale ICT to roughly the same range as form (0-10)
+  const ictScaled = Math.min(ictPerGame / 10, 10);
+
+  // Base score: weighted blend of performance signals
+  let base =
+    form * 0.30 +          // Recent form (most responsive to streaks)
+    ppg * 0.25 +           // Historical output (stable baseline)
+    xGI90 * 8 * 0.20 +    // xGI per 90 scaled up (underlying quality)
+    ictScaled * 0.15;      // ICT per game (overall match impact)
+
+  // Understat enrichment: detect over/underperformance
+  if (understatData) {
+    const uPlayer = matchUnderstatPlayer(understatData, fplPlayer);
+    if (uPlayer && uPlayer.games > 0) {
+      // Goals vs xG — positive = overperforming (likely to regress down)
+      const goalDelta = (uPlayer.goals - uPlayer.xG) / uPlayer.games;
+      // npxG per 90 is a cleaner signal (removes penalties)
+      const npxG90 = (uPlayer.npxG / uPlayer.games) * (90 / (uPlayer.time / uPlayer.games || 90));
+      // Blend npxG90 as additional signal
+      base += npxG90 * 5 * 0.10;
+      // Slight regression adjustment: overperformers get a small penalty
+      base -= goalDelta * 0.5;
+    }
+  }
+
+  // Fixture difficulty adjustment
+  let difficultyMultiplier = 1;
+
+  // Try betting odds for a more nuanced difficulty measure
+  if (oddsData && opponentShortName) {
+    const oppStrength = getTeamStrength(oddsData, opponentShortName);
+    if (oppStrength !== null) {
+      // oppStrength: 0-1, higher = stronger opponent = harder fixture
+      // Convert to multiplier: weak opponent (0.2) → 1.15, strong (0.6) → 0.85
+      difficultyMultiplier = 1.15 - oppStrength * 0.5;
+    } else {
+      // Fall back to FPL FDR
+      difficultyMultiplier = 1 + (3 - fixtureDifficulty) * 0.06;
+    }
+  } else {
+    // Fall back to FPL FDR (original approach, slightly refined)
+    difficultyMultiplier = 1 + (3 - fixtureDifficulty) * 0.06;
+  }
+
+  const projected = Math.max(1, Math.round(base * difficultyMultiplier));
+  return projected;
+}
+
 /* ── fetchMyTeam ──────────────────────────────────────────── */
 
 export async function fetchMyTeam() {
-  // Start all independent fetches immediately
+  // Start all independent fetches immediately (including external data)
   const bootstrapP = getBootstrap();
   const managerInfoP = getManagerInfo();
   const fixturesP = getFixtures();
   const historyP = getManagerHistory();
+  const understatP = getUnderstatData();
+  const oddsP = getOddsData();
 
   // Only need bootstrap to determine currentGw, don't wait for the rest
   const bootstrap = await bootstrapP;
@@ -94,13 +204,16 @@ export async function fetchMyTeam() {
   const currentGw = currentEvent?.id || 1;
 
   // Start Phase 2 in parallel with the still-running Phase 1 calls
-  const [managerInfo, fixtures, history, picksData, liveData] = await Promise.all([
-    managerInfoP,
-    fixturesP,
-    historyP,
-    getManagerPicks(currentGw),
-    getLiveGameweek(currentGw),
-  ]);
+  const [managerInfo, fixtures, history, picksData, liveData, understatData, oddsData] =
+    await Promise.all([
+      managerInfoP,
+      fixturesP,
+      historyP,
+      getManagerPicks(currentGw),
+      getLiveGameweek(currentGw),
+      understatP,
+      oddsP,
+    ]);
 
   // Live points lookup
   const livePoints = {};
@@ -120,6 +233,21 @@ export async function fetchMyTeam() {
       const teamFixtures = upcomingByTeam[p.team] || [];
       const nextFix = teamFixtures[0];
       const form = parseFloat(p.form) || 0;
+      const advanced = extractAdvancedStats(p);
+
+      // Understat enrichment
+      const uPlayer = matchUnderstatPlayer(understatData, p);
+      const understat = uPlayer
+        ? {
+            xG: uPlayer.xG,
+            xA: uPlayer.xA,
+            npxG: uPlayer.npxG,
+            xGChain: uPlayer.xGChain,
+            xGBuildup: uPlayer.xGBuildup,
+            shots: uPlayer.shots,
+            keyPasses: uPlayer.key_passes,
+          }
+        : null;
 
       return {
         id: p.id,
@@ -131,6 +259,8 @@ export async function fetchMyTeam() {
         totalPoints: p.total_points,
         gameweekPoints: livePoints[p.id] ?? p.event_points ?? 0,
         form,
+        ...advanced,
+        understat,
         upcomingFixtures: teamFixtures.slice(0, 5),
         upcomingFixture: nextFix ? nextFix.opponent : "TBD",
         fixtureDifficulty: nextFix ? nextFix.difficulty : 3,
@@ -139,6 +269,12 @@ export async function fetchMyTeam() {
         pointsHistory: Array.from({ length: 5 }, () =>
           Math.max(1, Math.round(form + (Math.random() - 0.5) * 4))
         ),
+        expectedPoints: teamFixtures
+          .slice(0, 5)
+          .map((f) => {
+            const oppShort = f.opponent?.match(/^(\w+)/)?.[1] || null;
+            return computeExpectedPoints(p, f.difficulty, understatData, oddsData, oppShort);
+          }),
       };
     });
 
@@ -254,11 +390,14 @@ export async function fetchProjectedPoints() {
 /* ── fetchAvailablePlayers ────────────────────────────────── */
 
 export async function fetchAvailablePlayers() {
-  const [bootstrap, managerInfo, fixtures] = await Promise.all([
-    getBootstrap(),
-    getManagerInfo(),
-    getFixtures(),
-  ]);
+  const [bootstrap, managerInfo, fixtures, understatData, oddsData] =
+    await Promise.all([
+      getBootstrap(),
+      getManagerInfo(),
+      getFixtures(),
+      getUnderstatData(),
+      getOddsData(),
+    ]);
 
   const { teams, positionMap, currentEvent } = buildLookups(bootstrap);
   const currentGw = currentEvent?.id || managerInfo.current_event;
@@ -282,6 +421,7 @@ export async function fetchAvailablePlayers() {
     const team = teams[p.team];
     const form = parseFloat(p.form) || 0;
     const teamFixtures = upcomingByTeam[p.team] || [];
+    const advanced = extractAdvancedStats(p);
 
     return {
       id: p.id,
@@ -292,11 +432,15 @@ export async function fetchAvailablePlayers() {
       price: p.now_cost / 10,
       totalPoints: p.total_points,
       form,
+      ...advanced,
       selectedByPercent: parseFloat(p.selected_by_percent) || 0,
       upcomingFixtures: teamFixtures.slice(0, 5),
       expectedPoints: teamFixtures
         .slice(0, 5)
-        .map((f) => Math.max(1, Math.round(form + (3 - f.difficulty) * 0.8))),
+        .map((f) => {
+          const oppShort = f.opponent?.match(/^(\w+)/)?.[1] || null;
+          return computeExpectedPoints(p, f.difficulty, understatData, oddsData, oppShort);
+        }),
     };
   });
 }
@@ -343,9 +487,11 @@ export async function fetchLeagueData() {
 /* ── fetchUpcomingFixtures ─────────────────────────────────── */
 
 export async function fetchUpcomingFixtures() {
-  const [bootstrap, fixtures] = await Promise.all([
+  const [bootstrap, fixtures, understatData, oddsData] = await Promise.all([
     getBootstrap(),
     getFixtures(),
+    getUnderstatData(),
+    getOddsData(),
   ]);
 
   const { teams, positionMap, currentEvent } = buildLookups(bootstrap);
@@ -369,15 +515,17 @@ export async function fetchUpcomingFixtures() {
     teamGwDifficulty[f.team_h][f.event] = {
       difficulty: f.team_h_difficulty,
       opponent: `${teams[f.team_a]?.short_name || "?"} (H)`,
+      opponentShort: teams[f.team_a]?.short_name || null,
     };
     if (!teamGwDifficulty[f.team_a]) teamGwDifficulty[f.team_a] = {};
     teamGwDifficulty[f.team_a][f.event] = {
       difficulty: f.team_a_difficulty,
       opponent: `${teams[f.team_h]?.short_name || "?"} (A)`,
+      opponentShort: teams[f.team_h]?.short_name || null,
     };
   }
 
-  // Score and rank players for each GW based on form + fixture easiness
+  // Score and rank players using the multi-source model
   const activePlayers = bootstrap.elements.filter(
     (p) => p.minutes > 0 && p.status === "a" && parseFloat(p.form) > 0
   );
@@ -388,8 +536,10 @@ export async function fetchUpcomingFixtures() {
       .map((p) => {
         const fix = teamGwDifficulty[p.team][gwId];
         const form = parseFloat(p.form) || 0;
-        // Score = form bonus + fixture easiness (lower difficulty = better)
-        const score = form + (3 - fix.difficulty) * 1.2;
+        // Use multi-source scoring model
+        const score = computeExpectedPoints(
+          p, fix.difficulty, understatData, oddsData, fix.opponentShort
+        );
         return {
           id: p.id,
           name: p.web_name,
@@ -441,9 +591,11 @@ export async function fetchUpcomingFixtures() {
 /* ── analyzeTransfer ──────────────────────────────────────── */
 
 export function analyzeTransfer(playerOut, playerIn, gameweeks) {
-  const outProjected = playerOut.pointsHistory
-    ? playerOut.pointsHistory.slice(0, gameweeks).reduce((s, v) => s + v, 0)
-    : Math.round((playerOut.form || 4) * gameweeks);
+  const outProjected = playerOut.expectedPoints
+    ? playerOut.expectedPoints.slice(0, gameweeks).reduce((s, v) => s + v, 0)
+    : playerOut.pointsHistory
+      ? playerOut.pointsHistory.slice(0, gameweeks).reduce((s, v) => s + v, 0)
+      : Math.round((playerOut.form || 4) * gameweeks);
 
   const inProjected = playerIn.expectedPoints
     ? playerIn.expectedPoints.slice(0, gameweeks).reduce((s, v) => s + v, 0)
@@ -453,12 +605,21 @@ export function analyzeTransfer(playerOut, playerIn, gameweeks) {
   const formDiff = (playerIn.form || 0) - (playerOut.form || 0);
   const priceDiff = (playerIn.price || 0) - (playerOut.price || 0);
 
+  // xG-based comparison (if available)
+  const inXGI = playerIn.xGI90 || playerIn.xGI || 0;
+  const outXGI = playerOut.xGI90 || playerOut.xGI || 0;
+  const xgiDiff = inXGI - outXGI;
+
   const avgInDifficulty = playerIn.upcomingFixtures?.length
     ? playerIn.upcomingFixtures
         .slice(0, gameweeks)
         .reduce((s, f) => s + f.difficulty, 0) / gameweeks
     : 3;
-  const avgOutDifficulty = playerOut.fixtureDifficulty || 3;
+  const avgOutDifficulty = playerOut.upcomingFixtures?.length
+    ? playerOut.upcomingFixtures
+        .slice(0, gameweeks)
+        .reduce((s, f) => s + f.difficulty, 0) / gameweeks
+    : playerOut.fixtureDifficulty || 3;
   const fixtureDiff = avgOutDifficulty - avgInDifficulty;
 
   let riskLevel;
@@ -473,16 +634,25 @@ export function analyzeTransfer(playerOut, playerIn, gameweeks) {
   let recommendation;
   if (pointsDiff > 5 && formDiff > 0) {
     recommendation = "Strong Buy";
+  } else if (pointsDiff > 3 && xgiDiff > 0.1) {
+    // New: xG data supports the transfer even with moderate points diff
+    recommendation = "Strong Buy";
   } else if (pointsDiff < -3 || formDiff < -1.5) {
     recommendation = "Avoid";
   } else {
     recommendation = "Neutral";
   }
 
+  // Build richer explanation incorporating xG insights
+  const xgNote =
+    inXGI > 0 && outXGI > 0
+      ? ` Underlying xGI comparison: ${playerIn.name} ${xgiDiff > 0 ? "+" : ""}${xgiDiff.toFixed(2)} per 90 vs ${playerOut.name}.`
+      : "";
+
   const explanations = {
-    "Strong Buy": `${playerIn.name} is projected to outscore ${playerOut.name} by ${pointsDiff} points over the next ${gameweeks} gameweeks. With better form (${playerIn.form} vs ${playerOut.form}) and favorable upcoming fixtures, this looks like a smart move.`,
-    Neutral: `This is a sideways move. ${playerIn.name} and ${playerOut.name} are projected similarly over the next ${gameweeks} gameweeks (${pointsDiff > 0 ? "+" : ""}${pointsDiff} point difference). Consider saving the transfer for a better opportunity.`,
-    Avoid: `${playerOut.name} is the better option here. Keeping the current player saves a transfer and is projected to yield ${Math.abs(pointsDiff)} more points over ${gameweeks} gameweeks.`,
+    "Strong Buy": `${playerIn.name} is projected to outscore ${playerOut.name} by ${pointsDiff} points over the next ${gameweeks} gameweeks. With better form (${playerIn.form} vs ${playerOut.form}) and favorable upcoming fixtures, this looks like a smart move.${xgNote}`,
+    Neutral: `This is a sideways move. ${playerIn.name} and ${playerOut.name} are projected similarly over the next ${gameweeks} gameweeks (${pointsDiff > 0 ? "+" : ""}${pointsDiff} point difference). Consider saving the transfer for a better opportunity.${xgNote}`,
+    Avoid: `${playerOut.name} is the better option here. Keeping the current player saves a transfer and is projected to yield ${Math.abs(pointsDiff)} more points over ${gameweeks} gameweeks.${xgNote}`,
   };
 
   return {
@@ -490,6 +660,7 @@ export function analyzeTransfer(playerOut, playerIn, gameweeks) {
     formDiff: formDiff.toFixed(1),
     priceDiff: priceDiff.toFixed(1),
     fixtureDiff: fixtureDiff.toFixed(1),
+    xgiDiff: xgiDiff.toFixed(2),
     riskLevel,
     recommendation,
     explanation: explanations[recommendation],
