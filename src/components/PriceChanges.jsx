@@ -12,6 +12,107 @@ const VIEWS = [
   { id: "season", label: "Season" },
 ];
 
+function formatDeadline(isoString) {
+  if (!isoString) return null;
+  const d = new Date(isoString);
+  return d.toLocaleDateString("en-GB", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function getTimeUntil(isoString) {
+  if (!isoString) return null;
+  const now = new Date();
+  const deadline = new Date(isoString);
+  const diff = deadline - now;
+  if (diff <= 0) return "Passed";
+
+  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+  const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+  const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+
+  if (days > 0) return `${days}d ${hours}h`;
+  if (hours > 0) return `${hours}h ${mins}m`;
+  return `${mins}m`;
+}
+
+function getNextPriceChange() {
+  // FPL prices change daily at ~2:30 AM UK time
+  const now = new Date();
+  const ukOffset = getUKOffset();
+  const ukNow = new Date(now.getTime() + ukOffset);
+
+  const next = new Date(ukNow);
+  next.setHours(2, 30, 0, 0);
+  if (ukNow.getHours() >= 3) {
+    next.setDate(next.getDate() + 1);
+  }
+
+  // Convert back to local
+  const local = new Date(next.getTime() - ukOffset);
+  return local;
+}
+
+function getUKOffset() {
+  // Approximate BST/GMT: BST is last Sunday of March to last Sunday of October
+  const now = new Date();
+  const year = now.getFullYear();
+  const marchLast = new Date(year, 2, 31);
+  const bstStart = new Date(year, 2, 31 - marchLast.getDay(), 1, 0);
+  const octLast = new Date(year, 9, 31);
+  const bstEnd = new Date(year, 9, 31 - octLast.getDay(), 1, 0);
+
+  const isBST = now >= bstStart && now < bstEnd;
+  const ukOffsetMs = isBST ? 1 * 60 * 60 * 1000 : 0;
+  const localOffsetMs = now.getTimezoneOffset() * 60 * 1000;
+  return ukOffsetMs + localOffsetMs;
+}
+
+function DeadlineBanner({ deadline, nextGw, currentGw }) {
+  const nextPrice = getNextPriceChange();
+  const priceCountdown = getTimeUntil(nextPrice.toISOString());
+  const deadlineCountdown = getTimeUntil(deadline);
+  const deadlineFormatted = formatDeadline(deadline);
+
+  return (
+    <div className="pc-deadline-banner">
+      <div className="pc-deadline-item">
+        <div className="pc-deadline-icon">{"\u23F0"}</div>
+        <div className="pc-deadline-info">
+          <span className="pc-deadline-title">Next Price Change</span>
+          <span className="pc-deadline-value">
+            ~{nextPrice.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} today
+          </span>
+          <span className="pc-deadline-countdown">{priceCountdown}</span>
+        </div>
+      </div>
+      <div className="pc-deadline-divider" />
+      <div className="pc-deadline-item">
+        <div className="pc-deadline-icon">{"\u{1F6A8}"}</div>
+        <div className="pc-deadline-info">
+          <span className="pc-deadline-title">GW{nextGw} Transfer Deadline</span>
+          <span className="pc-deadline-value">{deadlineFormatted || "TBD"}</span>
+          <span className={`pc-deadline-countdown ${deadlineCountdown && !deadlineCountdown.includes("d") ? "pc-deadline-urgent" : ""}`}>
+            {deadlineCountdown || "—"}
+          </span>
+        </div>
+      </div>
+      <div className="pc-deadline-divider" />
+      <div className="pc-deadline-item">
+        <div className="pc-deadline-icon">{"\u{1F4C5}"}</div>
+        <div className="pc-deadline-info">
+          <span className="pc-deadline-title">Current Gameweek</span>
+          <span className="pc-deadline-value">GW{currentGw}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function PressureBadge({ pressure }) {
   const config = {
     rising: { label: "Rising", cls: "pc-badge-rising" },
@@ -117,7 +218,7 @@ export default function PriceChanges() {
   if (loading) return <LoadingSpinner message="Loading price data..." />;
   if (error) return <ErrorMessage message={error} onRetry={handleRefresh} />;
 
-  const { rising, falling, recentChanges, biggestRisers, biggestFallers, lastUpdated } = data;
+  const { rising, falling, recentChanges, biggestRisers, biggestFallers, currentGw, nextGw, deadline, lastUpdated } = data;
 
   return (
     <div className="price-changes">
@@ -130,6 +231,8 @@ export default function PriceChanges() {
           Refresh
         </button>
       </div>
+
+      <DeadlineBanner deadline={deadline} nextGw={nextGw} currentGw={currentGw} />
 
       <div className="pc-summary-row">
         <div className="pc-summary-card pc-summary-rising">

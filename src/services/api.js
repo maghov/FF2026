@@ -682,9 +682,13 @@ export async function fetchPriceChanges() {
     getFixtures(),
   ]);
 
-  const { teams, positionMap, currentEvent } = buildLookups(bootstrap);
+  const { teams, positionMap, currentEvent, nextEvent } = buildLookups(bootstrap);
   const currentGw = currentEvent?.id || 1;
   const upcomingByTeam = getUpcomingFixturesByTeam(fixtures, teams, currentGw);
+
+  // Deadline & timing info
+  const deadline = nextEvent?.deadline_time || currentEvent?.deadline_time || null;
+  const nextGw = nextEvent?.id || currentGw + 1;
 
   const players = bootstrap.elements
     .filter((p) => p.minutes > 0 && p.status === "a")
@@ -741,6 +745,9 @@ export async function fetchPriceChanges() {
     recentChanges,
     biggestRisers,
     biggestFallers,
+    currentGw,
+    nextGw,
+    deadline,
     lastUpdated: new Date().toLocaleTimeString(),
   };
 }
