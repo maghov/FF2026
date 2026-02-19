@@ -358,6 +358,42 @@
 .fdr-4 { background: #ff6d00; color: white; }
 .fdr-5 { background: #d50000; color: white; }
 
+/* Price Change Indicators */
+.price-indicator {
+  display: inline-block;
+  margin-left: 3px;
+  font-size: 0.65rem;
+  vertical-align: middle;
+  line-height: 1;
+}
+
+.price-rising {
+  color: var(--positive);
+  font-weight: 700;
+}
+
+.price-likely-rising {
+  color: var(--positive);
+  opacity: 0.7;
+}
+
+.price-falling {
+  color: var(--negative);
+  font-weight: 700;
+}
+
+.price-likely-falling {
+  color: var(--negative);
+  opacity: 0.7;
+}
+
+/* Price Movement Expanded Section */
+.expanded-price-info {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border);
+}
+
 @media (max-width: 640px) {
   .players-grid {
     grid-template-columns: 1fr;

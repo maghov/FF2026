@@ -116,6 +116,38 @@ function extractAdvancedStats(p) {
 }
 
 /**
+ * Extract price change and transfer activity data from an FPL element.
+ * These fields are already present in the bootstrap API response but
+ * previously unused. They power price change indicators and urgency signals.
+ */
+function extractPriceData(p) {
+  const costChangeEvent = p.cost_change_event || 0;
+  const costChangeStart = p.cost_change_start || 0;
+  const transfersInEvent = p.transfers_in_event || 0;
+  const transfersOutEvent = p.transfers_out_event || 0;
+
+  const netTransfersEvent = transfersInEvent - transfersOutEvent;
+
+  let pricePressure = "stable";
+  if (netTransfersEvent > 50000) pricePressure = "rising";
+  else if (netTransfersEvent > 20000) pricePressure = "likely-rising";
+  else if (netTransfersEvent < -50000) pricePressure = "falling";
+  else if (netTransfersEvent < -20000) pricePressure = "likely-falling";
+
+  return {
+    costChangeEvent: costChangeEvent / 10,
+    costChangeStart: costChangeStart / 10,
+    transfersInEvent,
+    transfersOutEvent,
+    netTransfersEvent,
+    transfersIn: p.transfers_in || 0,
+    transfersOut: p.transfers_out || 0,
+    pricePressure,
+    startPrice: (p.now_cost - costChangeStart) / 10,
+  };
+}
+
+/**
  * Compute expected points for a player in a given fixture using a
  * multi-source blended model. This replaces the old form-only formula
  * with a weighted combination of:
@@ -234,6 +266,7 @@ export async function fetchMyTeam() {
       const nextFix = teamFixtures[0];
       const form = parseFloat(p.form) || 0;
       const advanced = extractAdvancedStats(p);
+      const priceData = extractPriceData(p);
 
       // Understat enrichment
       const uPlayer = matchUnderstatPlayer(understatData, p);
@@ -260,6 +293,7 @@ export async function fetchMyTeam() {
         gameweekPoints: livePoints[p.id] ?? p.event_points ?? 0,
         form,
         ...advanced,
+        ...priceData,
         understat,
         upcomingFixtures: teamFixtures.slice(0, 5),
         upcomingFixture: nextFix ? nextFix.opponent : "TBD",
@@ -422,6 +456,7 @@ export async function fetchAvailablePlayers() {
     const form = parseFloat(p.form) || 0;
     const teamFixtures = upcomingByTeam[p.team] || [];
     const advanced = extractAdvancedStats(p);
+    const priceData = extractPriceData(p);
 
     return {
       id: p.id,
@@ -433,6 +468,7 @@ export async function fetchAvailablePlayers() {
       totalPoints: p.total_points,
       form,
       ...advanced,
+      ...priceData,
       selectedByPercent: parseFloat(p.selected_by_percent) || 0,
       upcomingFixtures: teamFixtures.slice(0, 5),
       expectedPoints: teamFixtures
@@ -643,16 +679,32 @@ export function analyzeTransfer(playerOut, playerIn, gameweeks) {
     recommendation = "Neutral";
   }
 
+  // Price pressure can tip a neutral recommendation
+  if (recommendation === "Neutral") {
+    const inRising = playerIn.pricePressure === "rising" || playerIn.pricePressure === "likely-rising";
+    const outFalling = playerOut.pricePressure === "falling" || playerOut.pricePressure === "likely-falling";
+    if (inRising && outFalling && pointsDiff >= 0) {
+      recommendation = "Strong Buy";
+    }
+  }
+
   // Build richer explanation incorporating xG insights
   const xgNote =
     inXGI > 0 && outXGI > 0
       ? ` Underlying xGI comparison: ${playerIn.name} ${xgiDiff > 0 ? "+" : ""}${xgiDiff.toFixed(2)} per 90 vs ${playerOut.name}.`
       : "";
 
+  const priceNote =
+    (playerIn.pricePressure === "rising" || playerIn.pricePressure === "likely-rising")
+      ? ` Price alert: ${playerIn.name} has ${(playerIn.netTransfersEvent || 0).toLocaleString()} net transfers in — price rise expected.`
+      : (playerOut.pricePressure === "falling" || playerOut.pricePressure === "likely-falling")
+        ? ` Price alert: ${playerOut.name} is losing ownership — price drop expected.`
+        : "";
+
   const explanations = {
-    "Strong Buy": `${playerIn.name} is projected to outscore ${playerOut.name} by ${pointsDiff} points over the next ${gameweeks} gameweeks. With better form (${playerIn.form} vs ${playerOut.form}) and favorable upcoming fixtures, this looks like a smart move.${xgNote}`,
-    Neutral: `This is a sideways move. ${playerIn.name} and ${playerOut.name} are projected similarly over the next ${gameweeks} gameweeks (${pointsDiff > 0 ? "+" : ""}${pointsDiff} point difference). Consider saving the transfer for a better opportunity.${xgNote}`,
-    Avoid: `${playerOut.name} is the better option here. Keeping the current player saves a transfer and is projected to yield ${Math.abs(pointsDiff)} more points over ${gameweeks} gameweeks.${xgNote}`,
+    "Strong Buy": `${playerIn.name} is projected to outscore ${playerOut.name} by ${pointsDiff} points over the next ${gameweeks} gameweeks. With better form (${playerIn.form} vs ${playerOut.form}) and favorable upcoming fixtures, this looks like a smart move.${xgNote}${priceNote}`,
+    Neutral: `This is a sideways move. ${playerIn.name} and ${playerOut.name} are projected similarly over the next ${gameweeks} gameweeks (${pointsDiff > 0 ? "+" : ""}${pointsDiff} point difference). Consider saving the transfer for a better opportunity.${xgNote}${priceNote}`,
+    Avoid: `${playerOut.name} is the better option here. Keeping the current player saves a transfer and is projected to yield ${Math.abs(pointsDiff)} more points over ${gameweeks} gameweeks.${xgNote}${priceNote}`,
   };
 
   return {
