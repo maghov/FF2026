@@ -322,7 +322,7 @@ function HistoryTab({ uid }) {
     setLoading(true);
     try {
       const [snap, bootstrap] = await Promise.all([
-        get(ref(db, `tradeAnalyses/${uid}`)),
+        get(ref(db, `users/${uid}/tradeAnalyses`)),
         getBootstrap(),
       ]);
       const curGw = bootstrap.events.find((e) => e.is_current)?.id || 1;
@@ -343,7 +343,7 @@ function HistoryTab({ uid }) {
         setResolving(true);
         await resolveOutcomes(needsOutcome, curGw, uid);
         // Reload after writing outcomes
-        const refreshSnap = await get(ref(db, `tradeAnalyses/${uid}`));
+        const refreshSnap = await get(ref(db, `users/${uid}/tradeAnalyses`));
         const refreshed = refreshSnap.val();
         if (refreshed) {
           const updated = Object.entries(refreshed)
@@ -363,7 +363,7 @@ function HistoryTab({ uid }) {
   useEffect(() => { loadHistory(); }, [loadHistory]);
 
   async function handleDelete(key) {
-    await remove(ref(db, `tradeAnalyses/${uid}/${key}`));
+    await remove(ref(db, `users/${uid}/tradeAnalyses/${key}`));
     setEntries((prev) => prev.filter((e) => e.key !== key));
   }
 
@@ -476,7 +476,7 @@ async function resolveOutcomes(entries, currentGw, uid) {
     }
 
     const outcome = { inActual: inPts, outActual: outPts, verdict, gwBreakdown };
-    await set(ref(db, `tradeAnalyses/${uid}/${e.key}/outcome`), outcome);
+    await set(ref(db, `users/${uid}/tradeAnalyses/${e.key}/outcome`), outcome);
   }
 }
 
@@ -724,7 +724,7 @@ export default function TradeAnalyzer({ teamData, teamLoading, teamError, teamRe
     setSaving(true);
     setSaveMessage(null);
     try {
-      const analysisRef = push(ref(db, `tradeAnalyses/${user.uid}`));
+      const analysisRef = push(ref(db, `users/${user.uid}/tradeAnalyses`));
       await set(analysisRef, {
         savedAt: new Date().toISOString(),
         gameweek: teamData.summary.currentGameweek,
