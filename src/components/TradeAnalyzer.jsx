@@ -1,7 +1,11 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { useApi } from "../hooks/useApi";
+import { useAuth } from "../context/AuthContext";
 import { fetchAvailablePlayers, analyzeTransfer } from "../services/api";
 import { calculateMultiGwXpts, rankTransferTargets } from "../services/xpts";
+import { getBootstrap, getLiveGameweek } from "../services/fplApi";
+import { db } from "../firebase";
+import { ref, get, set, push, remove } from "firebase/database";
 import LoadingSpinner from "./LoadingSpinner";
 import ErrorMessage from "./ErrorMessage";
 import "./TradeAnalyzer.css";
@@ -306,6 +310,277 @@ function TradeResult({ result, playerOut, playerIn }) {
   );
 }
 
+/* ── History Tab ──────────────────────────────────────── */
+
+function HistoryTab({ uid }) {
+  const [entries, setEntries] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [resolving, setResolving] = useState(false);
+  const [currentGw, setCurrentGw] = useState(null);
+
+  const loadHistory = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [snap, bootstrap] = await Promise.all([
+        get(ref(db, `tradeAnalyses/${uid}`)),
+        getBootstrap(),
+      ]);
+      const curGw = bootstrap.events.find((e) => e.is_current)?.id || 1;
+      setCurrentGw(curGw);
+
+      const raw = snap.val();
+      if (!raw) { setEntries([]); return; }
+
+      const list = Object.entries(raw).map(([key, val]) => ({ key, ...val }));
+      list.sort((a, b) => new Date(b.savedAt) - new Date(a.savedAt));
+      setEntries(list);
+
+      // Resolve outcomes for completed analyses
+      const needsOutcome = list.filter(
+        (e) => !e.outcome && curGw > e.gameweek + e.gameweeksToTrack
+      );
+      if (needsOutcome.length > 0) {
+        setResolving(true);
+        await resolveOutcomes(needsOutcome, curGw, uid);
+        // Reload after writing outcomes
+        const refreshSnap = await get(ref(db, `tradeAnalyses/${uid}`));
+        const refreshed = refreshSnap.val();
+        if (refreshed) {
+          const updated = Object.entries(refreshed)
+            .map(([key, val]) => ({ key, ...val }))
+            .sort((a, b) => new Date(b.savedAt) - new Date(a.savedAt));
+          setEntries(updated);
+        }
+        setResolving(false);
+      }
+    } catch (err) {
+      console.error("Failed to load history:", err);
+    } finally {
+      setLoading(false);
+    }
+  }, [uid]);
+
+  useEffect(() => { loadHistory(); }, [loadHistory]);
+
+  async function handleDelete(key) {
+    await remove(ref(db, `tradeAnalyses/${uid}/${key}`));
+    setEntries((prev) => prev.filter((e) => e.key !== key));
+  }
+
+  if (loading) return <LoadingSpinner message="Loading saved analyses..." />;
+
+  if (entries.length === 0) {
+    return (
+      <div className="ta-history-empty">
+        <div className="placeholder-icon">&#128202;</div>
+        <p>No saved analyses yet</p>
+        <p className="ta-history-hint">Analyze a transfer and click "Save Analysis" to track its accuracy over time.</p>
+      </div>
+    );
+  }
+
+  const completed = entries.filter((e) => e.outcome);
+  const correctCount = completed.filter((e) => e.outcome?.verdict === "correct").length;
+
+  return (
+    <div className="ta-history">
+      {resolving && <p className="ta-resolving">Calculating outcomes...</p>}
+
+      {completed.length > 0 && (
+        <div className="ta-history-stats">
+          <div className="ta-hstat">
+            <span className="ta-hstat-num">{entries.length}</span>
+            <span className="ta-hstat-label">Saved</span>
+          </div>
+          <div className="ta-hstat">
+            <span className="ta-hstat-num">{completed.length}</span>
+            <span className="ta-hstat-label">Completed</span>
+          </div>
+          <div className="ta-hstat">
+            <span className="ta-hstat-num ta-hstat-pos">{correctCount}</span>
+            <span className="ta-hstat-label">Correct</span>
+          </div>
+          <div className="ta-hstat">
+            <span className="ta-hstat-num ta-hstat-neg">{completed.length - correctCount}</span>
+            <span className="ta-hstat-label">Wrong</span>
+          </div>
+          <div className="ta-hstat">
+            <span className="ta-hstat-num">{completed.length > 0 ? Math.round((correctCount / completed.length) * 100) : 0}%</span>
+            <span className="ta-hstat-label">Accuracy</span>
+          </div>
+        </div>
+      )}
+
+      <div className="ta-history-list">
+        {entries.map((e) => (
+          <HistoryCard key={e.key} entry={e} currentGw={currentGw} onDelete={() => handleDelete(e.key)} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+async function resolveOutcomes(entries, currentGw, uid) {
+  // Collect all GWs we need to fetch
+  const gwsNeeded = new Set();
+  for (const e of entries) {
+    const start = e.gameweek + 1;
+    const end = e.gameweek + e.gameweeksToTrack;
+    for (let gw = start; gw <= Math.min(end, currentGw); gw++) {
+      gwsNeeded.add(gw);
+    }
+  }
+
+  // Batch-fetch live data
+  const liveData = {};
+  const gwArr = [...gwsNeeded];
+  const batchSize = 5;
+  for (let i = 0; i < gwArr.length; i += batchSize) {
+    const batch = gwArr.slice(i, i + batchSize);
+    const results = await Promise.all(
+      batch.map((gw) => getLiveGameweek(gw).catch(() => null))
+    );
+    batch.forEach((gw, idx) => {
+      if (results[idx]) liveData[gw] = results[idx];
+    });
+  }
+
+  // Calculate outcomes and write back
+  for (const e of entries) {
+    const start = e.gameweek + 1;
+    const end = e.gameweek + e.gameweeksToTrack;
+    let inPts = 0;
+    let outPts = 0;
+    const gwBreakdown = [];
+
+    for (let gw = start; gw <= end; gw++) {
+      const live = liveData[gw];
+      if (!live) continue;
+      const inEl = live.elements.find((el) => el.id === e.playerIn.id);
+      const outEl = live.elements.find((el) => el.id === e.playerOut.id);
+      const inGwPts = inEl?.stats?.total_points || 0;
+      const outGwPts = outEl?.stats?.total_points || 0;
+      inPts += inGwPts;
+      outPts += outGwPts;
+      gwBreakdown.push({ gw, inPts: inGwPts, outPts: outGwPts });
+    }
+
+    const rec = e.analysis.recommendation;
+    let verdict;
+    if (rec === "Strong Buy") {
+      verdict = inPts >= outPts ? "correct" : "wrong";
+    } else if (rec === "Avoid") {
+      verdict = outPts >= inPts ? "correct" : "wrong";
+    } else {
+      verdict = inPts >= outPts ? "correct" : "wrong";
+    }
+
+    const outcome = { inActual: inPts, outActual: outPts, verdict, gwBreakdown };
+    await set(ref(db, `tradeAnalyses/${uid}/${e.key}/outcome`), outcome);
+  }
+}
+
+function HistoryCard({ entry, currentGw, onDelete }) {
+  const e = entry;
+  const endGw = e.gameweek + e.gameweeksToTrack;
+  const isPending = !e.outcome && currentGw <= endGw;
+  const gwsLeft = isPending ? endGw - currentGw + 1 : 0;
+
+  const recClass =
+    e.analysis.recommendation === "Strong Buy"
+      ? "strong-buy"
+      : e.analysis.recommendation === "Avoid"
+        ? "avoid"
+        : "neutral";
+
+  const verdictClass = e.outcome?.verdict === "correct" ? "ta-verdict-correct" : "ta-verdict-wrong";
+  const savedDate = new Date(e.savedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+
+  return (
+    <div className={`ta-hcard ${e.outcome ? verdictClass : "ta-verdict-pending"}`}>
+      <div className="ta-hcard-top">
+        <div className="ta-hcard-meta">
+          <span className="ta-hcard-date">{savedDate} &middot; GW{e.gameweek}</span>
+          <span className="ta-hcard-tracking">{e.gameweeksToTrack} GW window</span>
+        </div>
+        <div className="ta-hcard-actions">
+          <span className={`recommendation-badge ${recClass}`}>{e.analysis.recommendation}</span>
+          <button className="ta-hcard-delete" onClick={onDelete} title="Delete">&times;</button>
+        </div>
+      </div>
+
+      <div className="ta-hcard-players">
+        <div className="ta-hcard-player ta-hcard-out">
+          <span className="ta-hcard-dir">OUT</span>
+          <span className={`position-badge position-${e.playerOut.position}`}>{e.playerOut.position}</span>
+          <span className="ta-hcard-name">{e.playerOut.name}</span>
+          <span className="ta-hcard-club">{e.playerOut.clubShort}</span>
+        </div>
+        <span className="ta-hcard-arrow">&#8594;</span>
+        <div className="ta-hcard-player ta-hcard-in">
+          <span className="ta-hcard-dir">IN</span>
+          <span className={`position-badge position-${e.playerIn.position}`}>{e.playerIn.position}</span>
+          <span className="ta-hcard-name">{e.playerIn.name}</span>
+          <span className="ta-hcard-club">{e.playerIn.clubShort}</span>
+        </div>
+      </div>
+
+      <div className="ta-hcard-comparison">
+        <div className="ta-hcard-col">
+          <span className="ta-hcard-col-label">Projected</span>
+          <div className="ta-hcard-pts-row">
+            <span className="ta-hcard-pts">{e.analysis.outProjected} xPts</span>
+            <span className="ta-hcard-vs">vs</span>
+            <span className="ta-hcard-pts">{e.analysis.inProjected} xPts</span>
+          </div>
+          <span className={`ta-hcard-diff ${e.analysis.pointsDiff > 0 ? "positive" : e.analysis.pointsDiff < 0 ? "negative" : ""}`}>
+            {e.analysis.pointsDiff > 0 ? "+" : ""}{e.analysis.pointsDiff} diff
+          </span>
+        </div>
+        {e.outcome ? (
+          <div className="ta-hcard-col">
+            <span className="ta-hcard-col-label">Actual</span>
+            <div className="ta-hcard-pts-row">
+              <span className="ta-hcard-pts">{e.outcome.outActual} pts</span>
+              <span className="ta-hcard-vs">vs</span>
+              <span className="ta-hcard-pts">{e.outcome.inActual} pts</span>
+            </div>
+            <span className={`ta-hcard-diff ${e.outcome.inActual - e.outcome.outActual > 0 ? "positive" : e.outcome.inActual - e.outcome.outActual < 0 ? "negative" : ""}`}>
+              {e.outcome.inActual - e.outcome.outActual > 0 ? "+" : ""}{e.outcome.inActual - e.outcome.outActual} diff
+            </span>
+          </div>
+        ) : (
+          <div className="ta-hcard-col ta-hcard-pending">
+            <span className="ta-hcard-col-label">Actual</span>
+            <span className="ta-hcard-pending-text">
+              {isPending ? `${gwsLeft} GW${gwsLeft > 1 ? "s" : ""} left` : "Resolving..."}
+            </span>
+          </div>
+        )}
+      </div>
+
+      {e.outcome && (
+        <div className={`ta-hcard-verdict ${verdictClass}`}>
+          {e.outcome.verdict === "correct" ? "Prediction Correct" : "Prediction Wrong"}
+        </div>
+      )}
+
+      {e.outcome?.gwBreakdown?.length > 0 && (
+        <div className="ta-hcard-breakdown">
+          {e.outcome.gwBreakdown.map((gw) => (
+            <div key={gw.gw} className="ta-hcard-gw">
+              <span className="ta-hcard-gw-label">GW{gw.gw}</span>
+              <span className={gw.outPts > gw.inPts ? "negative" : gw.inPts > gw.outPts ? "positive" : ""}>{gw.outPts}</span>
+              <span className="ta-hcard-gw-sep">vs</span>
+              <span className={gw.inPts > gw.outPts ? "positive" : gw.outPts > gw.inPts ? "negative" : ""}>{gw.inPts}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function TopPicks({ picks, onSelect }) {
   if (!picks || picks.length === 0) return null;
   return (
@@ -341,12 +616,16 @@ function TopPicks({ picks, onSelect }) {
 }
 
 export default function TradeAnalyzer({ teamData, teamLoading, teamError, teamReload }) {
+  const { user } = useAuth();
+  const [tab, setTab] = useState("analyze");
   const [playerOutId, setPlayerOutId] = useState(null);
   const [playerInId, setPlayerInId] = useState(null);
   const [gameweeks, setGameweeks] = useState(3);
   const [posFilter, setPosFilter] = useState("All");
   const [maxPrice, setMaxPrice] = useState("");
   const [sortBy, setSortBy] = useState("xpts");
+  const [saving, setSaving] = useState(false);
+  const [saveMessage, setSaveMessage] = useState(null);
 
   const {
     data: availableData,
@@ -440,11 +719,73 @@ export default function TradeAnalyzer({ teamData, teamLoading, teamError, teamRe
     }
   }
 
+  async function handleSaveAnalysis() {
+    if (!user || !result || !playerOut || !playerIn) return;
+    setSaving(true);
+    setSaveMessage(null);
+    try {
+      const analysisRef = push(ref(db, `tradeAnalyses/${user.uid}`));
+      await set(analysisRef, {
+        savedAt: new Date().toISOString(),
+        gameweek: teamData.summary.currentGameweek,
+        gameweeksToTrack: gameweeks,
+        playerOut: {
+          id: playerOut.id,
+          name: playerOut.name,
+          position: playerOut.position,
+          club: playerOut.club,
+          clubShort: playerOut.clubShort,
+          price: playerOut.price,
+        },
+        playerIn: {
+          id: playerIn.id,
+          name: playerIn.name,
+          position: playerIn.position,
+          club: playerIn.club,
+          clubShort: playerIn.clubShort,
+          price: playerIn.price,
+        },
+        analysis: {
+          recommendation: result.recommendation,
+          pointsDiff: result.pointsDiff,
+          outProjected: result.outProjected,
+          inProjected: result.inProjected,
+          riskLevel: result.riskLevel,
+          explanation: result.explanation,
+        },
+      });
+      setSaveMessage("Saved! Track it in the History tab.");
+      setTimeout(() => setSaveMessage(null), 3000);
+    } catch (err) {
+      console.error("Save failed:", err);
+      setSaveMessage("Failed to save.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   if (loading) return <LoadingSpinner message="Loading trade data..." />;
   if (error) return <ErrorMessage message={error} onRetry={teamReload} />;
 
   return (
     <div className="trade-analyzer">
+      <div className="ta-tabs">
+        <button className={`ta-tab ${tab === "analyze" ? "active" : ""}`} onClick={() => setTab("analyze")}>
+          Analyze
+        </button>
+        <button className={`ta-tab ${tab === "history" ? "active" : ""}`} onClick={() => setTab("history")}>
+          History
+        </button>
+      </div>
+
+      {tab === "history" && user && <HistoryTab uid={user.uid} />}
+      {tab === "history" && !user && (
+        <div className="ta-history-empty">
+          <p>Log in to save and track analyses.</p>
+        </div>
+      )}
+
+      {tab === "analyze" && (<>
       <div className="trade-controls">
         <div className="controls-card">
           <h3>Transfer Setup</h3>
@@ -548,11 +889,21 @@ export default function TradeAnalyzer({ teamData, teamLoading, teamError, teamRe
 
       {result && (
         <div className="trade-results">
-          <TradeResult
-            result={result}
-            playerOut={playerOut}
-            playerIn={playerIn}
-          />
+          <div>
+            <TradeResult
+              result={result}
+              playerOut={playerOut}
+              playerIn={playerIn}
+            />
+            {user && (
+              <div className="ta-save-row">
+                <button className="ta-save-btn" onClick={handleSaveAnalysis} disabled={saving}>
+                  {saving ? "Saving..." : "Save Analysis"}
+                </button>
+                {saveMessage && <span className="ta-save-msg">{saveMessage}</span>}
+              </div>
+            )}
+          </div>
           <FixtureComparison
             playerOut={playerOut}
             playerIn={playerIn}
@@ -570,6 +921,7 @@ export default function TradeAnalyzer({ teamData, teamLoading, teamError, teamRe
           </div>
         </>
       )}
+      </>)}
     </div>
   );
 }
