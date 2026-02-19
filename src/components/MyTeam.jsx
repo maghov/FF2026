@@ -5,6 +5,26 @@ import "./MyTeam.css";
 
 const positionOrder = { GKP: 0, DEF: 1, MID: 2, FWD: 3 };
 
+function PriceChangeIndicator({ player }) {
+  if (!player || !player.pricePressure || player.pricePressure === "stable") return null;
+
+  const config = {
+    "rising":         { arrow: "\u25B2", label: "Rising",         className: "price-rising" },
+    "likely-rising":  { arrow: "\u25B3", label: "Likely rising",  className: "price-likely-rising" },
+    "falling":        { arrow: "\u25BC", label: "Falling",        className: "price-falling" },
+    "likely-falling": { arrow: "\u25BD", label: "Likely falling", className: "price-likely-falling" },
+  };
+
+  const c = config[player.pricePressure];
+  if (!c) return null;
+
+  return (
+    <span className={`price-indicator ${c.className}`} title={c.label}>
+      {c.arrow}
+    </span>
+  );
+}
+
 function PlayerCard({ player, isExpanded, onToggle }) {
   const formColor =
     player.form >= 7 ? "positive" : player.form <= 4 ? "negative" : "";
@@ -28,7 +48,10 @@ function PlayerCard({ player, isExpanded, onToggle }) {
       <div className="player-stats">
         <div className="stat">
           <span className="stat-label">Price</span>
-          <span className="stat-value">&pound;{player.price}m</span>
+          <span className="stat-value">
+            &pound;{player.price}m
+            <PriceChangeIndicator player={player} />
+          </span>
         </div>
         <div className="stat">
           <span className="stat-label">Points</span>
@@ -101,6 +124,33 @@ function PlayerCard({ player, isExpanded, onToggle }) {
               </div>
             </div>
           </div>
+          {(player.costChangeEvent !== undefined && player.costChangeEvent !== 0 || (player.pricePressure && player.pricePressure !== "stable")) && (
+            <div className="expanded-price-info">
+              <div className="expanded-section-title">Price Movement</div>
+              <div className="expanded-stats-grid">
+                <div className="es-item">
+                  <span className={`es-value ${player.costChangeStart > 0 ? "positive" : player.costChangeStart < 0 ? "negative" : ""}`}>
+                    {player.costChangeStart > 0 ? "+" : ""}{(player.costChangeStart || 0).toFixed(1)}
+                  </span>
+                  <span className="es-label">Season</span>
+                </div>
+                <div className="es-item">
+                  <span className={`es-value ${player.costChangeEvent > 0 ? "positive" : player.costChangeEvent < 0 ? "negative" : ""}`}>
+                    {player.costChangeEvent > 0 ? "+" : ""}{(player.costChangeEvent || 0).toFixed(1)}
+                  </span>
+                  <span className="es-label">This GW</span>
+                </div>
+                <div className="es-item">
+                  <span className="es-value">{((player.netTransfersEvent || 0) / 1000).toFixed(0)}k</span>
+                  <span className="es-label">Net Xfers</span>
+                </div>
+                <div className="es-item">
+                  <span className="es-value">&pound;{(player.startPrice || player.price).toFixed(1)}m</span>
+                  <span className="es-label">Start Price</span>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

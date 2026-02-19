@@ -14,6 +14,7 @@ const SORT_OPTIONS = [
   { value: "price-asc", label: "Price (low)" },
   { value: "price-desc", label: "Price (high)" },
   { value: "selectedByPercent", label: "Ownership %" },
+  { value: "netTransfersEvent", label: "Transfer Activity" },
 ];
 
 function PlayerSelector({ label, players, selected, onChange, disabledId }) {
@@ -37,6 +38,20 @@ function PlayerSelector({ label, players, selected, onChange, disabledId }) {
   );
 }
 
+function PriceTag({ player }) {
+  const pressure = player?.pricePressure;
+  if (!pressure || pressure === "stable") return <span>&pound;{player.price}m</span>;
+  const isRising = pressure.includes("rising");
+  const symbol = isRising ? "\u25B2" : "\u25BC";
+  const cls = isRising ? "positive" : "negative";
+  return (
+    <span>
+      &pound;{player.price}m <span className={cls} style={{ fontSize: "0.65rem" }}>{symbol}</span>
+    </span>
+  );
+}
+
+function PlayerStatCard({ player, label }) {
 function PlayerStatCard({ player, label, teams }) {
   const xptsResult = useMemo(() => {
     if (!player) return null;
@@ -66,7 +81,7 @@ function PlayerStatCard({ player, label, teams }) {
           <span className="sc-label">Form</span>
         </div>
         <div className="stat-card-item">
-          <span className="sc-value">£{player.price}m</span>
+          <span className="sc-value"><PriceTag player={player} /></span>
           <span className="sc-label">Price</span>
         </div>
         <div className="stat-card-item">
@@ -196,6 +211,25 @@ function TradeResult({ result, playerOut, playerIn }) {
           </span>
         </div>
       </div>
+
+      {(playerIn.pricePressure === "rising" || playerIn.pricePressure === "likely-rising") && (
+        <div className="urgency-alert urgency-rising">
+          <span className="urgency-icon">{"\u25B2"}</span>
+          <span className="urgency-text">
+            {playerIn.name} has {(playerIn.netTransfersEvent || 0).toLocaleString()} net transfers in this GW
+            {playerIn.pricePressure === "rising" ? " — price rise imminent, act now!" : " — trending toward a price rise."}
+          </span>
+        </div>
+      )}
+      {(playerOut.pricePressure === "falling" || playerOut.pricePressure === "likely-falling") && (
+        <div className="urgency-alert urgency-falling">
+          <span className="urgency-icon">{"\u25BC"}</span>
+          <span className="urgency-text">
+            {playerOut.name} is losing {Math.abs(playerOut.netTransfersEvent || 0).toLocaleString()} net transfers
+            {playerOut.pricePressure === "falling" ? " — price drop imminent, sell before value loss!" : " — trending toward a price drop."}
+          </span>
+        </div>
+      )}
 
       <div className="points-projection">
         <div className="projection-bar">
@@ -351,6 +385,9 @@ export default function TradeAnalyzer({ teamData, teamLoading, teamError, teamRe
         break;
       case "selectedByPercent":
         sorted.sort((a, b) => b.selectedByPercent - a.selectedByPercent);
+        break;
+      case "netTransfersEvent":
+        sorted.sort((a, b) => (b.netTransfersEvent || 0) - (a.netTransfersEvent || 0));
         break;
     }
 

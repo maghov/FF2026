@@ -10,16 +10,23 @@ export function getManagerId() {
 }
 
 let bootstrapCache = null;
+let bootstrapCacheTime = 0;
+const BOOTSTRAP_CACHE_TTL = 30 * 60 * 1000; // 30 minutes
 let fixturesCache = null;
 const liveGwCache = {};
 
-// Fallback CORS proxies (used only if the Netlify function is unavailable)
+// CORS proxies — tried in parallel, with the last working one remembered
 const CORS_PROXIES = [
   (url) => `https://corsproxy.io/?url=${encodeURIComponent(url)}`,
   (url) => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
   (url) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`,
   (url) => `https://thingproxy.freeboard.io/fetch/${url}`,
 ];
+
+// Remember which proxy index last succeeded so subsequent calls try it first
+let lastWorkingProxy = -1;
+// Track whether the Netlify proxy is available (null = untested)
+let netlifyProxyAvailable = null;
 
 async function fetchWithTimeout(url, timeoutMs = 8000) {
   const controller = new AbortController();
@@ -34,6 +41,15 @@ async function fetchWithTimeout(url, timeoutMs = 8000) {
   }
 }
 
+/** Try a single CORS proxy and return { index, data } on success */
+async function tryCorsProxy(index, fullUrl) {
+  const url = CORS_PROXIES[index](fullUrl);
+  const res = await fetchWithTimeout(url, 6000);
+  if (!res.ok) throw new Error(`FPL API error (${res.status})`);
+  const data = await res.json();
+  return { index, data };
+}
+
 async function fetchJson(path) {
   // In development, Vite proxy handles CORS — no proxy needed
   if (import.meta.env.DEV) {
@@ -42,6 +58,7 @@ async function fetchJson(path) {
     return res.json();
   }
 
+  // ── 1. Try pre-fetched static data first (instant, no network) ──
   // ── 1. Try our own Netlify serverless proxy (most reliable) ──
   try {
     const res = await fetchWithTimeout(`/api/fpl-proxy?path=${encodeURIComponent(path)}`);
@@ -73,35 +90,72 @@ async function fetchJson(path) {
     }
   }
 
-  // ── 3. Try third-party CORS proxies as last resort ──
-  const fullUrl = `${FPL_BASE}/${path}`;
-  let lastError;
-  for (let i = 0; i < CORS_PROXIES.length; i++) {
+  // ── 2. Try Netlify serverless proxy (only if not already known to be unavailable) ──
+  if (netlifyProxyAvailable !== false) {
     try {
-      const url = CORS_PROXIES[i](fullUrl);
-      const res = await fetchWithTimeout(url);
-      if (!res.ok) throw new Error(`FPL API error (${res.status})`);
-      return await res.json();
-    } catch (err) {
-      lastError = err;
+      const res = await fetchWithTimeout(
+        `/api/fpl-proxy?path=${encodeURIComponent(path)}`,
+        netlifyProxyAvailable === null ? 3000 : 6000
+      );
+      if (res.ok) {
+        const data = await res.json();
+        netlifyProxyAvailable = true;
+        return data;
+      }
+      // Got a response but not JSON / not ok — not a Netlify function
+      netlifyProxyAvailable = false;
+    } catch {
+      netlifyProxyAvailable = false;
     }
   }
 
-  throw new Error(
-    `Unable to reach the FPL API. All proxy methods failed. ` +
-    `Last error: ${lastError?.message || "Unknown"}. ` +
-    `Try refreshing or running the app locally with "npm run dev".`
+  // ── 3. CORS proxies — try last working one first, then race the rest ──
+  const fullUrl = `${FPL_BASE}/${path}`;
+
+  // If we know a proxy that worked before, try it first (fast path)
+  if (lastWorkingProxy >= 0) {
+    try {
+      const { data } = await tryCorsProxy(lastWorkingProxy, fullUrl);
+      return data;
+    } catch {
+      // It failed this time, fall through to racing all proxies
+      lastWorkingProxy = -1;
+    }
+  }
+
+  // Race all CORS proxies in parallel — first successful response wins
+  const racePromises = CORS_PROXIES.map((_, i) =>
+    tryCorsProxy(i, fullUrl)
   );
+
+  try {
+    // Promise.any resolves with the first fulfilled promise
+    const { index, data } = await Promise.any(racePromises);
+    lastWorkingProxy = index;
+    return data;
+  } catch {
+    throw new Error(
+      `Unable to reach the FPL API. All proxy methods failed. ` +
+      `Try refreshing or running the app locally with "npm run dev".`
+    );
+  }
 }
 
 export async function getBootstrap() {
-  if (!bootstrapCache) {
+  const now = Date.now();
+  if (!bootstrapCache || (now - bootstrapCacheTime) >= BOOTSTRAP_CACHE_TTL) {
     bootstrapCache = fetchJson("bootstrap-static/").catch((err) => {
       bootstrapCache = null;
       throw err;
     });
+    bootstrapCacheTime = now;
   }
   return bootstrapCache;
+}
+
+export function clearBootstrapCache() {
+  bootstrapCache = null;
+  bootstrapCacheTime = 0;
 }
 
 export async function getManagerInfo() {
