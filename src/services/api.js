@@ -674,6 +674,77 @@ export async function fetchUpcomingFixtures() {
   }));
 }
 
+/* ── fetchPriceChanges ─────────────────────────────────────── */
+
+export async function fetchPriceChanges() {
+  const [bootstrap, fixtures] = await Promise.all([
+    getBootstrap(),
+    getFixtures(),
+  ]);
+
+  const { teams, positionMap, currentEvent } = buildLookups(bootstrap);
+  const currentGw = currentEvent?.id || 1;
+  const upcomingByTeam = getUpcomingFixturesByTeam(fixtures, teams, currentGw);
+
+  const players = bootstrap.elements
+    .filter((p) => p.minutes > 0 && p.status === "a")
+    .map((p) => {
+      const team = teams[p.team];
+      const priceData = extractPriceData(p);
+      const teamFixtures = upcomingByTeam[p.team] || [];
+      const nextFix = teamFixtures[0];
+
+      return {
+        id: p.id,
+        name: p.web_name,
+        position: positionMap[p.element_type],
+        club: team?.name || "Unknown",
+        clubShort: team?.short_name || "???",
+        price: p.now_cost / 10,
+        form: parseFloat(p.form) || 0,
+        totalPoints: p.total_points,
+        selectedByPercent: parseFloat(p.selected_by_percent) || 0,
+        ...priceData,
+        nextFixture: nextFix ? nextFix.opponent : "TBD",
+        nextDifficulty: nextFix ? nextFix.difficulty : 3,
+      };
+    });
+
+  // Split into rising, falling, and stable buckets
+  const rising = players
+    .filter((p) => p.pricePressure === "rising" || p.pricePressure === "likely-rising")
+    .sort((a, b) => b.netTransfersEvent - a.netTransfersEvent);
+
+  const falling = players
+    .filter((p) => p.pricePressure === "falling" || p.pricePressure === "likely-falling")
+    .sort((a, b) => a.netTransfersEvent - b.netTransfersEvent);
+
+  // Recent price changes this GW (already happened)
+  const recentChanges = players
+    .filter((p) => p.costChangeEvent !== 0)
+    .sort((a, b) => Math.abs(b.costChangeEvent) - Math.abs(a.costChangeEvent));
+
+  // Biggest season movers
+  const biggestRisers = [...players]
+    .filter((p) => p.costChangeStart > 0)
+    .sort((a, b) => b.costChangeStart - a.costChangeStart)
+    .slice(0, 10);
+
+  const biggestFallers = [...players]
+    .filter((p) => p.costChangeStart < 0)
+    .sort((a, b) => a.costChangeStart - b.costChangeStart)
+    .slice(0, 10);
+
+  return {
+    rising,
+    falling,
+    recentChanges,
+    biggestRisers,
+    biggestFallers,
+    lastUpdated: new Date().toLocaleTimeString(),
+  };
+}
+
 /* ── fetchTransferHistory ─────────────────────────────────── */
 
 export async function fetchTransferHistory() {

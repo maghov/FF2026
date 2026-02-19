@@ -1,0 +1,372 @@
+.price-changes {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+/* Header */
+.pc-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.pc-header-left {
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+}
+
+.pc-header h2 {
+  font-size: 1.25rem;
+  color: var(--text-primary);
+}
+
+.pc-updated {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.pc-refresh-btn {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  padding: 0.4rem 0.75rem;
+  font-size: 0.8rem;
+}
+
+.pc-refresh-btn:hover {
+  color: var(--primary);
+  border-color: var(--primary);
+}
+
+/* Summary Cards */
+.pc-summary-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.75rem;
+}
+
+.pc-summary-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1rem;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.pc-summary-count {
+  font-size: 1.75rem;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.pc-summary-rising .pc-summary-count {
+  color: var(--positive);
+}
+
+.pc-summary-falling .pc-summary-count {
+  color: var(--negative);
+}
+
+.pc-summary-changed .pc-summary-count {
+  color: var(--primary);
+}
+
+.pc-summary-label {
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 600;
+}
+
+/* View Tabs */
+.pc-view-tabs {
+  display: flex;
+  gap: 0.25rem;
+  background: var(--bg);
+  border-radius: 8px;
+  padding: 0.2rem;
+  border: 1px solid var(--border);
+  width: fit-content;
+}
+
+.pc-view-tab {
+  padding: 0.4rem 1rem;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.pc-view-tab:hover {
+  color: var(--text-primary);
+}
+
+.pc-view-tab.active {
+  background: var(--card-bg);
+  color: var(--primary);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+/* Sections */
+.pc-sections {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.pc-section {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1.25rem;
+}
+
+.pc-section-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.25rem;
+}
+
+.pc-section-header h3 {
+  font-size: 1rem;
+  color: var(--text-primary);
+}
+
+.pc-section-icon {
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.pc-section-buy .pc-section-icon {
+  color: var(--positive);
+}
+
+.pc-section-sell .pc-section-icon {
+  color: var(--negative);
+}
+
+.pc-section-count {
+  margin-left: auto;
+  background: var(--bg);
+  padding: 0.15rem 0.5rem;
+  border-radius: 10px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+
+.pc-section-hint {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  margin-bottom: 0.75rem;
+}
+
+.pc-empty {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  text-align: center;
+  padding: 1.5rem;
+}
+
+/* Player Row */
+.pc-player-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.pc-player-row {
+  display: grid;
+  grid-template-columns: 1fr auto auto auto auto;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.6rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.pc-player-row:last-child {
+  border-bottom: none;
+}
+
+.pc-player-info {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.pc-player-details {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.pc-player-name {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pc-player-meta {
+  font-size: 0.65rem;
+  color: var(--text-secondary);
+}
+
+/* Price column */
+.pc-player-price {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.1rem;
+}
+
+.pc-price-value {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.pc-price-change {
+  font-size: 0.65rem;
+  font-weight: 700;
+}
+
+.pc-price-change.positive {
+  color: var(--positive);
+}
+
+.pc-price-change.negative {
+  color: var(--negative);
+}
+
+.pc-start-price {
+  font-size: 0.6rem;
+  color: var(--text-secondary);
+}
+
+/* Transfers column */
+.pc-player-transfers {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  min-width: 50px;
+}
+
+.pc-transfers-value {
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.pc-transfers-value.positive {
+  color: var(--positive);
+}
+
+.pc-transfers-value.negative {
+  color: var(--negative);
+}
+
+.pc-transfers-label {
+  font-size: 0.55rem;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+}
+
+.pc-season-change {
+  font-size: 0.85rem;
+  font-weight: 800;
+}
+
+.pc-season-change.positive {
+  color: var(--positive);
+}
+
+.pc-season-change.negative {
+  color: var(--negative);
+}
+
+/* Fixture column */
+.pc-player-fixture {
+  min-width: 65px;
+  text-align: center;
+}
+
+.pc-player-fixture .fixture-badge {
+  font-size: 0.65rem;
+  font-weight: 600;
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+}
+
+/* Status column */
+.pc-player-status {
+  min-width: 85px;
+  text-align: right;
+}
+
+.pc-badge {
+  padding: 0.2rem 0.5rem;
+  border-radius: 10px;
+  font-size: 0.6rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.pc-badge-rising {
+  background: var(--positive-bg);
+  color: var(--positive);
+}
+
+.pc-badge-likely-rising {
+  background: var(--positive-bg);
+  color: var(--positive);
+  opacity: 0.75;
+}
+
+.pc-badge-falling {
+  background: var(--negative-bg);
+  color: var(--negative);
+}
+
+.pc-badge-likely-falling {
+  background: var(--negative-bg);
+  color: var(--negative);
+  opacity: 0.75;
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .pc-summary-row {
+    grid-template-columns: 1fr;
+  }
+
+  .pc-player-row {
+    grid-template-columns: 1fr auto auto;
+    gap: 0.5rem;
+  }
+
+  .pc-player-fixture,
+  .pc-player-status {
+    display: none;
+  }
+
+  .pc-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+}
