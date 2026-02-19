@@ -31,6 +31,7 @@ export default function TransferTracker() {
   const chips = useMemo(() => result?.chips || [], [result]);
   const [expandedId, setExpandedId] = useState(null);
   const [posFilter, setPosFilter] = useState("All");
+  const [viewMode, setViewMode] = useState("weekly"); // "individual" | "weekly"
   const [newTransferIds, setNewTransferIds] = useState(new Set());
   const cardRefs = useRef({});
 
@@ -308,8 +309,22 @@ export default function TransferTracker() {
         </div>
       )}
 
-      {/* Position filter */}
+      {/* View toggle + Position filter */}
       <div className="transfer-filter-bar">
+        <div className="view-toggle">
+          <button
+            className={`view-toggle-btn ${viewMode === "weekly" ? "view-active" : ""}`}
+            onClick={() => setViewMode("weekly")}
+          >
+            Weekly
+          </button>
+          <button
+            className={`view-toggle-btn ${viewMode === "individual" ? "view-active" : ""}`}
+            onClick={() => setViewMode("individual")}
+          >
+            Individual
+          </button>
+        </div>
         <span className="filter-label">Filter:</span>
         {POSITIONS.map((pos) => (
           <button
@@ -323,111 +338,257 @@ export default function TransferTracker() {
         <span className="filter-count">{filtered.length} transfer{filtered.length !== 1 ? "s" : ""}</span>
       </div>
 
-      {/* Transfer list */}
-      <div className="transfer-list">
-        {filtered.map((t) => {
-          // Use original index for refs and expand state
-          const origIdx = transfers.indexOf(t);
-          const isExpanded = expandedId === origIdx;
-          const isPositive = t.netGain >= 0;
-          const isNew = newTransferIds.has(origIdx);
+      {/* Transfer list — Individual view */}
+      {viewMode === "individual" && (
+        <div className="transfer-list">
+          {filtered.map((t) => {
+            const origIdx = transfers.indexOf(t);
+            const isExpanded = expandedId === origIdx;
+            const isPositive = t.netGain >= 0;
+            const isNew = newTransferIds.has(origIdx);
 
-          return (
-            <div
-              key={origIdx}
-              ref={(el) => (cardRefs.current[origIdx] = el)}
-              className={`transfer-card ${isPositive ? "transfer-positive" : "transfer-negative"} ${isNew ? "transfer-new" : ""}`}
-              onClick={() => setExpandedId(isExpanded ? null : origIdx)}
-            >
-              {isNew && <div className="new-badge">NEW</div>}
+            return (
+              <div
+                key={origIdx}
+                ref={(el) => (cardRefs.current[origIdx] = el)}
+                className={`transfer-card ${isPositive ? "transfer-positive" : "transfer-negative"} ${isNew ? "transfer-new" : ""}`}
+                onClick={() => setExpandedId(isExpanded ? null : origIdx)}
+              >
+                {isNew && <div className="new-badge">NEW</div>}
 
-              <div className="transfer-header">
-                <div className="transfer-gw-row">
-                  <span className="transfer-gw">GW{t.gameweek}</span>
-                  {t.chip && (
-                    <span className={`transfer-chip-badge chip-${t.chip}`}>
-                      {CHIP_LABELS[t.chip]} — {CHIP_NAMES[t.chip]}
-                    </span>
-                  )}
-                </div>
-                <div className={`transfer-net ${isPositive ? "net-positive" : "net-negative"}`}>
-                  {isPositive ? "+" : ""}{t.netGain} pts
-                </div>
-              </div>
-
-              <div className="transfer-players">
-                <div className="transfer-player out">
-                  <div className="transfer-direction">OUT</div>
-                  <div className="transfer-player-info">
-                    <span className="transfer-player-name">{t.playerOut.name}</span>
-                    <span className="transfer-player-meta">
-                      {t.playerOut.club} · {t.playerOut.position}
-                    </span>
+                <div className="transfer-header">
+                  <div className="transfer-gw-row">
+                    <span className="transfer-gw">GW{t.gameweek}</span>
+                    {t.chip && (
+                      <span className={`transfer-chip-badge chip-${t.chip}`}>
+                        {CHIP_LABELS[t.chip]} — {CHIP_NAMES[t.chip]}
+                      </span>
+                    )}
                   </div>
-                  <div className="transfer-player-points">{t.playerOut.pointsSinceTransfer} pts</div>
-                </div>
-
-                <div className="transfer-arrow">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M12 5v14M5 12l7 7 7-7" />
-                  </svg>
-                </div>
-
-                <div className="transfer-player in">
-                  <div className="transfer-direction">IN</div>
-                  <div className="transfer-player-info">
-                    <span className="transfer-player-name">{t.playerIn.name}</span>
-                    <span className="transfer-player-meta">
-                      {t.playerIn.club} · {t.playerIn.position}
-                    </span>
+                  <div className={`transfer-net ${isPositive ? "net-positive" : "net-negative"}`}>
+                    {isPositive ? "+" : ""}{t.netGain} pts
                   </div>
-                  <div className="transfer-player-points">{t.playerIn.pointsSinceTransfer} pts</div>
                 </div>
-              </div>
 
-              {t.transferCost > 0 && (
-                <div className="transfer-hit">-{t.transferCost} pt hit</div>
-              )}
-
-              <div className="transfer-meta">
-                {t.gameweeksCompared} GW{t.gameweeksCompared !== 1 ? "s" : ""} compared
-                <span className="expand-hint">{isExpanded ? "▲" : "▼"}</span>
-              </div>
-
-              {/* Expanded breakdown */}
-              {isExpanded && (
-                <div className="transfer-breakdown">
-                  <div className="breakdown-header">
-                    <span>GW</span>
-                    <span>{t.playerOut.name}</span>
-                    <span>{t.playerIn.name}</span>
-                    <span>Diff</span>
-                  </div>
-                  {t.gwBreakdown.map((gw) => (
-                    <div key={gw.gw} className="breakdown-row">
-                      <span className="breakdown-gw">{gw.gw}</span>
-                      <span className="breakdown-pts">{gw.outPts}</span>
-                      <span className="breakdown-pts">{gw.inPts}</span>
-                      <span className={`breakdown-diff ${gw.diff >= 0 ? "diff-positive" : "diff-negative"}`}>
-                        {gw.diff >= 0 ? "+" : ""}{gw.diff}
+                <div className="transfer-players">
+                  <div className="transfer-player out">
+                    <div className="transfer-direction">OUT</div>
+                    <div className="transfer-player-info">
+                      <span className="transfer-player-name">{t.playerOut.name}</span>
+                      <span className="transfer-player-meta">
+                        {t.playerOut.club} · {t.playerOut.position}
                       </span>
                     </div>
-                  ))}
-                  {/* Cumulative total row */}
-                  <div className="breakdown-row breakdown-total">
-                    <span className="breakdown-gw">Total</span>
-                    <span className="breakdown-pts">{t.playerOut.pointsSinceTransfer}</span>
-                    <span className="breakdown-pts">{t.playerIn.pointsSinceTransfer}</span>
-                    <span className={`breakdown-diff ${t.netGain >= 0 ? "diff-positive" : "diff-negative"}`}>
-                      {t.netGain >= 0 ? "+" : ""}{t.netGain}
-                    </span>
+                    <div className="transfer-player-points">{t.playerOut.pointsSinceTransfer} pts</div>
+                  </div>
+
+                  <div className="transfer-arrow">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M12 5v14M5 12l7 7 7-7" />
+                    </svg>
+                  </div>
+
+                  <div className="transfer-player in">
+                    <div className="transfer-direction">IN</div>
+                    <div className="transfer-player-info">
+                      <span className="transfer-player-name">{t.playerIn.name}</span>
+                      <span className="transfer-player-meta">
+                        {t.playerIn.club} · {t.playerIn.position}
+                      </span>
+                    </div>
+                    <div className="transfer-player-points">{t.playerIn.pointsSinceTransfer} pts</div>
                   </div>
                 </div>
-              )}
+
+                {t.transferCost > 0 && (
+                  <div className="transfer-hit">-{t.transferCost} pt hit</div>
+                )}
+
+                <div className="transfer-meta">
+                  {t.gameweeksCompared} GW{t.gameweeksCompared !== 1 ? "s" : ""} compared
+                  <span className="expand-hint">{isExpanded ? "▲" : "▼"}</span>
+                </div>
+
+                {isExpanded && (
+                  <div className="transfer-breakdown">
+                    <div className="breakdown-header">
+                      <span>GW</span>
+                      <span>{t.playerOut.name}</span>
+                      <span>{t.playerIn.name}</span>
+                      <span>Diff</span>
+                    </div>
+                    {t.gwBreakdown.map((gw) => (
+                      <div key={gw.gw} className="breakdown-row">
+                        <span className="breakdown-gw">{gw.gw}</span>
+                        <span className="breakdown-pts">{gw.outPts}</span>
+                        <span className="breakdown-pts">{gw.inPts}</span>
+                        <span className={`breakdown-diff ${gw.diff >= 0 ? "diff-positive" : "diff-negative"}`}>
+                          {gw.diff >= 0 ? "+" : ""}{gw.diff}
+                        </span>
+                      </div>
+                    ))}
+                    <div className="breakdown-row breakdown-total">
+                      <span className="breakdown-gw">Total</span>
+                      <span className="breakdown-pts">{t.playerOut.pointsSinceTransfer}</span>
+                      <span className="breakdown-pts">{t.playerIn.pointsSinceTransfer}</span>
+                      <span className={`breakdown-diff ${t.netGain >= 0 ? "diff-positive" : "diff-negative"}`}>
+                        {t.netGain >= 0 ? "+" : ""}{t.netGain}
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Transfer list — Weekly grouped view */}
+      {viewMode === "weekly" && (
+        <WeeklyView transfers={filtered} expandedId={expandedId} setExpandedId={setExpandedId} />
+      )}
+    </div>
+  );
+}
+
+/* ── Weekly Grouped View ─────────────────────────────────── */
+
+function WeeklyView({ transfers, expandedId, setExpandedId }) {
+  // Group transfers by gameweek (most recent first)
+  const grouped = useMemo(() => {
+    const byGw = {};
+    for (const t of transfers) {
+      if (!byGw[t.gameweek]) {
+        byGw[t.gameweek] = {
+          gameweek: t.gameweek,
+          chip: t.chip,
+          transfers: [],
+          totalNetGain: 0,
+          transferCost: t.transferCost || 0,
+        };
+      }
+      byGw[t.gameweek].transfers.push(t);
+      byGw[t.gameweek].totalNetGain += t.netGain;
+    }
+    return Object.values(byGw).sort((a, b) => b.gameweek - a.gameweek);
+  }, [transfers]);
+
+  return (
+    <div className="transfer-list">
+      {grouped.map((week) => {
+        const gwKey = `gw-${week.gameweek}`;
+        const isExpanded = expandedId === gwKey;
+        const isPositive = week.totalNetGain >= 0;
+        const count = week.transfers.length;
+
+        return (
+          <div
+            key={gwKey}
+            className={`transfer-card weekly-card ${isPositive ? "transfer-positive" : "transfer-negative"}`}
+            onClick={() => setExpandedId(isExpanded ? null : gwKey)}
+          >
+            {/* Header */}
+            <div className="transfer-header">
+              <div className="transfer-gw-row">
+                <span className="transfer-gw">GW{week.gameweek}</span>
+                {week.chip && (
+                  <span className={`transfer-chip-badge chip-${week.chip}`}>
+                    {CHIP_LABELS[week.chip]} — {CHIP_NAMES[week.chip]}
+                  </span>
+                )}
+                <span className="weekly-count">{count} transfer{count !== 1 ? "s" : ""}</span>
+              </div>
+              <div className={`transfer-net ${isPositive ? "net-positive" : "net-negative"}`}>
+                {isPositive ? "+" : ""}{week.totalNetGain} pts
+              </div>
             </div>
-          );
-        })}
-      </div>
+
+            {/* Compact transfer rows */}
+            <div className="weekly-transfers">
+              {week.transfers.map((t, i) => {
+                const tPositive = t.netGain >= 0;
+                return (
+                  <div key={i} className="weekly-transfer-row">
+                    <div className="weekly-player out">
+                      <span className="weekly-player-name">{t.playerOut.name}</span>
+                      <span className="weekly-player-meta">{t.playerOut.club}</span>
+                    </div>
+                    <div className="weekly-arrow">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M5 12h14M12 5l7 7-7 7" />
+                      </svg>
+                    </div>
+                    <div className="weekly-player in">
+                      <span className="weekly-player-name">{t.playerIn.name}</span>
+                      <span className="weekly-player-meta">{t.playerIn.club}</span>
+                    </div>
+                    <div className={`weekly-diff ${tPositive ? "diff-positive" : "diff-negative"}`}>
+                      {tPositive ? "+" : ""}{t.netGain}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {week.transferCost > 0 && (
+              <div className="transfer-hit">-{week.transferCost} pt hit</div>
+            )}
+
+            <div className="transfer-meta">
+              <span className="expand-hint">{isExpanded ? "▲ Hide details" : "▼ Show details"}</span>
+            </div>
+
+            {/* Expanded: individual breakdowns */}
+            {isExpanded && (
+              <div className="weekly-expanded">
+                {week.transfers.map((t, i) => (
+                  <div key={i} className="weekly-detail-card">
+                    <div className="weekly-detail-header">
+                      <span className="weekly-detail-names">
+                        {t.playerOut.name} → {t.playerIn.name}
+                      </span>
+                      <span className={`weekly-detail-net ${t.netGain >= 0 ? "diff-positive" : "diff-negative"}`}>
+                        {t.netGain >= 0 ? "+" : ""}{t.netGain} pts
+                      </span>
+                    </div>
+                    <div className="weekly-detail-meta">
+                      {t.playerOut.position} · {t.gameweeksCompared} GW{t.gameweeksCompared !== 1 ? "s" : ""} compared
+                    </div>
+                    {t.gwBreakdown && (
+                      <div className="transfer-breakdown">
+                        <div className="breakdown-header">
+                          <span>GW</span>
+                          <span>{t.playerOut.name}</span>
+                          <span>{t.playerIn.name}</span>
+                          <span>Diff</span>
+                        </div>
+                        {t.gwBreakdown.map((gw) => (
+                          <div key={gw.gw} className="breakdown-row">
+                            <span className="breakdown-gw">{gw.gw}</span>
+                            <span className="breakdown-pts">{gw.outPts}</span>
+                            <span className="breakdown-pts">{gw.inPts}</span>
+                            <span className={`breakdown-diff ${gw.diff >= 0 ? "diff-positive" : "diff-negative"}`}>
+                              {gw.diff >= 0 ? "+" : ""}{gw.diff}
+                            </span>
+                          </div>
+                        ))}
+                        <div className="breakdown-row breakdown-total">
+                          <span className="breakdown-gw">Total</span>
+                          <span className="breakdown-pts">{t.playerOut.pointsSinceTransfer}</span>
+                          <span className="breakdown-pts">{t.playerIn.pointsSinceTransfer}</span>
+                          <span className={`breakdown-diff ${t.netGain >= 0 ? "diff-positive" : "diff-negative"}`}>
+                            {t.netGain >= 0 ? "+" : ""}{t.netGain}
+                          </span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }
