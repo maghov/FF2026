@@ -346,7 +346,6 @@ export async function fetchMyTeam() {
           }),
       };
     });
-    .map(mapPick);
 
   // Bench (positions 12-15)
   const bench = picksData.picks
@@ -520,7 +519,6 @@ export async function fetchAvailablePlayers() {
           const oppShort = f.opponent?.match(/^(\w+)/)?.[1] || null;
           return computeExpectedPoints(p, f.difficulty, understatData, oddsData, oppShort);
         }),
-        .map((f) => Math.max(1, Math.round(form + (3 - f.difficulty) * 0.8))),
       // xPts engine fields
       ictIndex: parseFloat(p.ict_index) || 0,
       pointsPerGame: parseFloat(p.points_per_game) || 0,
@@ -685,12 +683,6 @@ export async function fetchTransferHistory() {
     getFixtures(),
   ]);
 
-export function analyzeTransfer(playerOut, playerIn, gameweeks) {
-  const outProjected = playerOut.expectedPoints
-    ? playerOut.expectedPoints.slice(0, gameweeks).reduce((s, v) => s + v, 0)
-    : playerOut.pointsHistory
-      ? playerOut.pointsHistory.slice(0, gameweeks).reduce((s, v) => s + v, 0)
-      : Math.round((playerOut.form || 4) * gameweeks);
   const { teams, positionMap, players: allPlayers, currentEvent } = buildLookups(bootstrap);
   const playedGws = history.current.filter((gw) => gw.event_transfers > 0);
 
@@ -860,7 +852,6 @@ export function analyzeTransfer(playerOut, playerIn, gameweeks, teams) {
         .slice(0, gameweeks)
         .reduce((s, f) => s + f.difficulty, 0) / gameweeks
     : playerOut.fixtureDifficulty || 3;
-    : 3;
   const fixtureDiff = avgOutDifficulty - avgInDifficulty;
 
   let riskLevel;
@@ -878,7 +869,6 @@ export function analyzeTransfer(playerOut, playerIn, gameweeks, teams) {
   } else if (pointsDiff > 3 && xgiDiff > 0.1) {
     // New: xG data supports the transfer even with moderate points diff
     recommendation = "Strong Buy";
-  } else if (pointsDiff < -3 || formDiff < -1.5) {
   } else if (pointsDiff < -2 || formDiff < -1.5) {
     recommendation = "Avoid";
   } else {
@@ -907,10 +897,6 @@ export function analyzeTransfer(playerOut, playerIn, gameweeks, teams) {
         ? ` Price alert: ${playerOut.name} is losing ownership — price drop expected.`
         : "";
 
-  const explanations = {
-    "Strong Buy": `${playerIn.name} is projected to outscore ${playerOut.name} by ${pointsDiff} points over the next ${gameweeks} gameweeks. With better form (${playerIn.form} vs ${playerOut.form}) and favorable upcoming fixtures, this looks like a smart move.${xgNote}${priceNote}`,
-    Neutral: `This is a sideways move. ${playerIn.name} and ${playerOut.name} are projected similarly over the next ${gameweeks} gameweeks (${pointsDiff > 0 ? "+" : ""}${pointsDiff} point difference). Consider saving the transfer for a better opportunity.${xgNote}${priceNote}`,
-    Avoid: `${playerOut.name} is the better option here. Keeping the current player saves a transfer and is projected to yield ${Math.abs(pointsDiff)} more points over ${gameweeks} gameweeks.${xgNote}${priceNote}`,
   // Build reasoning from xPts factors
   const inReasons = inResult.topReasons;
   const outReasons = outResult.topReasons;

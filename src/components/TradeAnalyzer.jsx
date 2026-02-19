@@ -51,7 +51,6 @@ function PriceTag({ player }) {
   );
 }
 
-function PlayerStatCard({ player, label }) {
 function PlayerStatCard({ player, label, teams }) {
   const xptsResult = useMemo(() => {
     if (!player) return null;
