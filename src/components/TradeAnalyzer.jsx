@@ -17,7 +17,7 @@ const SORT_OPTIONS = [
   { value: "netTransfersEvent", label: "Transfer Activity" },
 ];
 
-function PlayerSelector({ label, players, selected, onChange, disabledId }) {
+function PlayerSelector({ label, players, selected, onChange, disabledId, groups }) {
   return (
     <div className="selector">
       <label>{label}</label>
@@ -26,13 +26,27 @@ function PlayerSelector({ label, players, selected, onChange, disabledId }) {
         onChange={(e) => onChange(Number(e.target.value) || null)}
       >
         <option value="">Select a player...</option>
-        {players
-          .filter((p) => p.id !== disabledId)
-          .map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.name} ({p.position}) - {p.clubShort} - £{p.price}m
-            </option>
-          ))}
+        {groups ? (
+          groups.map((group) => (
+            <optgroup key={group.label} label={group.label}>
+              {group.players
+                .filter((p) => p.id !== disabledId)
+                .map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name} ({p.position}) - {p.clubShort} - £{p.price}m
+                  </option>
+                ))}
+            </optgroup>
+          ))
+        ) : (
+          players
+            .filter((p) => p.id !== disabledId)
+            .map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name} ({p.position}) - {p.clubShort} - £{p.price}m
+              </option>
+            ))
+        )}
       </select>
     </div>
   );
@@ -346,9 +360,14 @@ export default function TradeAnalyzer({ teamData, teamLoading, teamError, teamRe
   const available = useMemo(() => availableData?.candidates || [], [availableData]);
   const teams = useMemo(() => availableData?.teams || teamData?.teams || {}, [availableData, teamData]);
 
+  const allSquadPlayers = useMemo(
+    () => [...(teamData?.players || []), ...(teamData?.bench || [])],
+    [teamData]
+  );
+
   const playerOut = useMemo(
-    () => teamData?.players.find((p) => p.id === playerOutId),
-    [teamData, playerOutId]
+    () => allSquadPlayers.find((p) => p.id === playerOutId),
+    [allSquadPlayers, playerOutId]
   );
 
   const filteredAvailable = useMemo(() => {
@@ -415,8 +434,8 @@ export default function TradeAnalyzer({ teamData, teamLoading, teamError, teamRe
 
   function handlePlayerOutChange(id) {
     setPlayerOutId(id);
-    if (id && teamData) {
-      const p = teamData.players.find((pl) => pl.id === id);
+    if (id) {
+      const p = allSquadPlayers.find((pl) => pl.id === id);
       if (p) setPosFilter(p.position);
     }
   }
@@ -431,9 +450,13 @@ export default function TradeAnalyzer({ teamData, teamLoading, teamError, teamRe
           <h3>Transfer Setup</h3>
           <PlayerSelector
             label="Transfer Out"
-            players={teamData.players}
+            players={allSquadPlayers}
             selected={playerOutId}
             onChange={handlePlayerOutChange}
+            groups={[
+              { label: "Starting XI", players: teamData.players || [] },
+              { label: "Bench", players: teamData.bench || [] },
+            ]}
           />
 
           <div className="filter-bar">
