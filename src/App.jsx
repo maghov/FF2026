@@ -8,6 +8,7 @@ import Fixtures from "./components/Fixtures";
 import Formation from "./components/Formation";
 import AdminPage from "./components/AdminPage";
 import TransferTracker from "./components/TransferTracker";
+import PriceChanges from "./components/PriceChanges";
 import LoginPage from "./components/auth/LoginPage";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import "./App.css";
@@ -18,6 +19,7 @@ const TABS = [
   { id: "points", label: "Points", icon: "chart" },
   { id: "trade", label: "Trade Analyzer", icon: "swap" },
   { id: "transfers", label: "Transfers", icon: "transfers" },
+  { id: "prices", label: "Prices", icon: "prices" },
   { id: "fixtures", label: "Fixtures", icon: "calendar" },
 ];
 
@@ -47,6 +49,11 @@ const iconMap = {
   formation: (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <rect x="2" y="2" width="20" height="20" rx="2"/><circle cx="12" cy="5" r="1.5" fill="currentColor"/><circle cx="7" cy="10" r="1.5" fill="currentColor"/><circle cx="17" cy="10" r="1.5" fill="currentColor"/><circle cx="8" cy="16" r="1.5" fill="currentColor"/><circle cx="16" cy="16" r="1.5" fill="currentColor"/><circle cx="12" cy="21" r="1.5" fill="currentColor"/>
+    </svg>
+  ),
+  prices: (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
     </svg>
   ),
   transfers: (
@@ -107,12 +114,13 @@ function Dashboard() {
         {activeTab === "formation" && <Formation teamData={teamData} teamLoading={teamLoading} teamError={teamError} teamReload={teamReload} />}
         {activeTab === "points" && <PointsPerformance teamData={teamData} teamLoading={teamLoading} teamError={teamError} teamReload={teamReload} />}
         {activeTab === "trade" && <TradeAnalyzer teamData={teamData} teamLoading={teamLoading} teamError={teamError} teamReload={teamReload} />}
+        {activeTab === "prices" && <PriceChanges />}
         {activeTab === "transfers" && <TransferTracker />}
         {activeTab === "fixtures" && <Fixtures />}
         {activeTab === "admin" && isAdmin && <AdminPage />}
       </main>
 
-      <div className="version-label">v0.02</div>
+      <div className="version-label">v0.03</div>
     </div>
   );
 }
