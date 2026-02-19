@@ -533,6 +533,73 @@
   color: #ef4444;
 }
 
+/* Chip badges on transfer cards */
+.transfer-gw-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.transfer-chip-badge {
+  font-size: 0.6rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  padding: 0.15rem 0.5rem;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+.chip-freehit {
+  color: #a855f7;
+  background: rgba(168, 85, 247, 0.12);
+}
+
+.chip-wildcard {
+  color: #3b82f6;
+  background: rgba(59, 130, 246, 0.12);
+}
+
+.chip-bboost {
+  color: #f97316;
+  background: rgba(249, 115, 22, 0.12);
+}
+
+.chip-3xc {
+  color: #eab308;
+  background: rgba(234, 179, 8, 0.12);
+}
+
+/* Chip tag on cumulative chart */
+.chart-chip-tag {
+  font-size: 0.55rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  padding: 0.1rem 0.3rem;
+  border-radius: 3px;
+  position: absolute;
+  top: -2px;
+  z-index: 2;
+}
+
+.chart-bar-chip {
+  position: relative;
+}
+
+/* Chip-only marker (BB/TC with no transfer bar) */
+.chart-chip-marker {
+  font-weight: 800;
+  opacity: 0.6;
+}
+
+/* Chip bar styling — dashed outline effect */
+.bar-chip-freehit {
+  background: linear-gradient(180deg, #a855f7, #9333ea);
+}
+
+.bar-chip-wildcard {
+  background: linear-gradient(180deg, #3b82f6, #2563eb);
+}
+
 @media (max-width: 600px) {
   .transfer-stats {
     grid-template-columns: repeat(2, 1fr);
