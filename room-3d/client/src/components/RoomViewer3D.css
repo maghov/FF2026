@@ -1,0 +1,43 @@
+.viewer-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 2rem;
+  align-items: center;
+}
+
+.viewer-canvas-wrapper {
+  width: 100%;
+  max-width: 800px;
+  height: 500px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  background: #1a1a2e;
+}
+
+.export-buttons {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.export-buttons h3 {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+.export-row {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.export-hint {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  text-align: center;
+  max-width: 400px;
+}
