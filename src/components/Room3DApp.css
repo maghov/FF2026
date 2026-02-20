@@ -1,0 +1,117 @@
+/* Step Navigator */
+.room3d-step-nav {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 1rem 0;
+  margin-bottom: 1rem;
+}
+
+.room3d-step-item {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.8rem;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  transition: all 0.2s;
+}
+
+.room3d-step-item.active {
+  background: var(--primary-bg);
+  color: var(--primary);
+  font-weight: 600;
+}
+
+.room3d-step-item.done {
+  color: var(--positive);
+}
+
+.room3d-step-number {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  font-weight: 700;
+  border: 1.5px solid var(--border);
+  flex-shrink: 0;
+}
+
+.room3d-step-item.active .room3d-step-number {
+  background: var(--primary);
+  color: white;
+  border-color: var(--primary);
+}
+
+.room3d-step-item.done .room3d-step-number {
+  background: var(--positive);
+  color: white;
+  border-color: var(--positive);
+}
+
+.room3d-step-label {
+  display: none;
+}
+
+@media (min-width: 480px) {
+  .room3d-step-label {
+    display: inline;
+  }
+}
+
+/* Step Actions */
+.room3d-step-actions {
+  display: flex;
+  gap: 0.75rem;
+  padding: 1.5rem 0;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+/* Extract Step */
+.room3d-extract-status {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  padding: 4rem 2rem;
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+.room3d-extract-sub {
+  font-size: 0.85rem;
+  opacity: 0.7;
+}
+
+.room3d-extract-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+.room3d-error-icon {
+  width: 48px;
+  height: 48px;
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  font-weight: 800;
+}
+
+/* Loading container for Suspense fallback */
+.loading-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 4rem 2rem;
+}

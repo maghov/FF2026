@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, lazy, Suspense } from "react";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { useApi } from "./hooks/useApi";
 import { fetchMyTeam } from "./services/api";
@@ -9,10 +9,11 @@ import Fixtures from "./components/Fixtures";
 import Formation from "./components/Formation";
 import AdminPage from "./components/AdminPage";
 import LoginPage from "./components/auth/LoginPage";
-import Room3DApp from "./components/Room3DApp";
 import TransferTracker from "./components/TransferTracker";
 import PriceChanges from "./components/PriceChanges";
 import "./App.css";
+
+const Room3DApp = lazy(() => import("./components/Room3DApp"));
 
 const TABS = [
   { id: "team", label: "My Team", icon: "shield" },
@@ -141,7 +142,11 @@ function AppContent() {
   }
 
   if (!user) return <LoginPage onLogin={setDestination} />;
-  if (destination === "room3d") return <Room3DApp onSwitchApp={() => setDestination("ff")} />;
+  if (destination === "room3d") return (
+    <Suspense fallback={<div className="app-loading"><div className="loading-spinner" /></div>}>
+      <Room3DApp onSwitchApp={() => setDestination("ff")} />
+    </Suspense>
+  );
   return <Dashboard onSwitchApp={() => setDestination("room3d")} />;
 }
 
