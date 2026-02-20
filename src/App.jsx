@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useAuth, AuthProvider } from "./context/AuthContext";
+import { AuthProvider, useAuth } from "./context/AuthContext";
 import { useApi } from "./hooks/useApi";
 import { fetchMyTeam } from "./services/api";
 import MyTeam from "./components/MyTeam";
@@ -12,8 +12,6 @@ import LoginPage from "./components/auth/LoginPage";
 import Room3DApp from "./components/Room3DApp";
 import TransferTracker from "./components/TransferTracker";
 import PriceChanges from "./components/PriceChanges";
-import LoginPage from "./components/auth/LoginPage";
-import { AuthProvider, useAuth } from "./context/AuthContext";
 import "./App.css";
 
 const TABS = [
@@ -72,8 +70,6 @@ const iconMap = {
 };
 
 function Dashboard({ onSwitchApp }) {
-  const { user, isAdmin, logout } = useAuth();
-function Dashboard() {
   const { user, fplCode, isAdmin, logout } = useAuth();
   const [activeTab, setActiveTab] = useState("team");
   const { data: teamData, loading: teamLoading, error: teamError, reload: teamReload } =
