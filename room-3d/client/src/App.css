@@ -1,0 +1,137 @@
+.app {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 1rem;
+  min-height: 100vh;
+}
+
+.app-header {
+  text-align: center;
+  padding: 1.5rem 0 1rem;
+}
+
+.app-header h1 {
+  font-size: 1.6rem;
+  font-weight: 700;
+}
+
+.app-subtitle {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+/* Step Navigator */
+.step-nav {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 1rem 0;
+  margin-bottom: 1rem;
+}
+
+.step-item {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.8rem;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  transition: all 0.2s;
+}
+
+.step-item.active {
+  background: var(--primary-bg);
+  color: var(--primary);
+  font-weight: 600;
+}
+
+.step-item.done {
+  color: var(--positive);
+}
+
+.step-number {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  font-weight: 700;
+  border: 1.5px solid var(--border);
+  flex-shrink: 0;
+}
+
+.step-item.active .step-number {
+  background: var(--primary);
+  color: white;
+  border-color: var(--primary);
+}
+
+.step-item.done .step-number {
+  background: var(--positive);
+  color: white;
+  border-color: var(--positive);
+}
+
+.step-label {
+  display: none;
+}
+
+@media (min-width: 480px) {
+  .step-label {
+    display: inline;
+  }
+}
+
+/* Main Content */
+.app-main {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.step-actions {
+  display: flex;
+  gap: 0.75rem;
+  padding: 1.5rem 0;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+/* Extract Step */
+.extract-status {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  padding: 4rem 2rem;
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+.extract-sub {
+  font-size: 0.85rem;
+  opacity: 0.7;
+}
+
+.extract-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+.error-icon {
+  width: 48px;
+  height: 48px;
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  font-weight: 800;
+}
