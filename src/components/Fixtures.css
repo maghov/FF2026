@@ -75,12 +75,14 @@
   justify-content: space-between;
   width: 100%;
   padding: 1rem 1.25rem;
+  min-height: 48px;
   background: none;
   border: none;
   cursor: pointer;
   color: var(--text-primary);
   font-family: inherit;
   text-align: left;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .gw-card-header:hover {
@@ -280,6 +282,7 @@
   .match-row {
     grid-template-columns: 1fr 24px 1fr;
     padding: 0.6rem 0.75rem;
+    font-size: 0.8rem;
   }
 
   .match-kickoff {
@@ -300,11 +303,34 @@
     display: none;
   }
 
+  .gw-card-header {
+    padding: 0.75rem;
+  }
+
+  .gw-number {
+    font-size: 0.95rem;
+  }
+
   .picks-grid {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(auto-fill, minmax(min(140px, 100%), 1fr));
+    gap: 0.5rem;
   }
 
   .picks-section {
     padding: 0.75rem;
+  }
+
+  .pick-card {
+    padding: 0.6rem;
+  }
+
+  .pick-name {
+    font-size: 0.8rem;
+  }
+}
+
+@media (max-width: 380px) {
+  .picks-grid {
+    grid-template-columns: 1fr;
   }
 }

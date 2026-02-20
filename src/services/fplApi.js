@@ -13,6 +13,7 @@ let bootstrapCache = null;
 let bootstrapCacheTime = 0;
 const BOOTSTRAP_CACHE_TTL = 30 * 60 * 1000; // 30 minutes
 let fixturesCache = null;
+const liveGwCache = {};
 
 // CORS proxies — tried in parallel, with the last working one remembered
 const CORS_PROXIES = [
@@ -58,14 +59,26 @@ async function fetchJson(path) {
   }
 
   // ── 1. Try pre-fetched static data first (instant, no network) ──
+  // ── 1. Try our own Netlify serverless proxy (most reliable) ──
+  try {
+    const res = await fetchWithTimeout(`/api/fpl-proxy?path=${encodeURIComponent(path)}`);
+    if (res.ok) return await res.json();
+  } catch {
+    // Netlify function unavailable, continue to fallbacks
+  }
+
+  // ── 2. Try pre-fetched static data (for bootstrap, fixtures & live GWs) ──
   const staticPaths = {
     "bootstrap-static/": "bootstrap.json",
     "fixtures/": "fixtures.json",
   };
-  if (staticPaths[path]) {
+  // Match live GW paths: event/{gw}/live/ → live/gw{gw}.json
+  const liveMatch = path.match(/^event\/(\d+)\/live\/$/);
+  const staticFile = staticPaths[path] || (liveMatch ? `live/gw${liveMatch[1]}.json` : null);
+  if (staticFile) {
     try {
       const base = import.meta.env.BASE_URL || "/";
-      const res = await fetchWithTimeout(`${base}data/${staticPaths[path]}`, 3000);
+      const res = await fetchWithTimeout(`${base}data/${staticFile}`, 3000);
       if (res.ok) {
         const data = await res.json();
         if (data && (Array.isArray(data) ? data.length > 0 : Object.keys(data).length > 0)) {
@@ -168,7 +181,13 @@ export async function getFixtures() {
 }
 
 export async function getLiveGameweek(gw) {
-  return fetchJson(`event/${gw}/live/`);
+  if (!liveGwCache[gw]) {
+    liveGwCache[gw] = fetchJson(`event/${gw}/live/`).catch((err) => {
+      delete liveGwCache[gw];
+      throw err;
+    });
+  }
+  return liveGwCache[gw];
 }
 
 export async function getLeagueStandings(leagueId) {

@@ -61,6 +61,37 @@ async function main() {
     }
   }
 
+  // Pre-fetch live gameweek data for all finished GWs
+  console.log("\nPre-fetching live gameweek data...\n");
+  try {
+    const bootstrapUrl = `${FPL_BASE}/bootstrap-static/`;
+    const bootstrap = await fetchWithRetry(bootstrapUrl);
+    const finishedGws = bootstrap.events
+      .filter((e) => e.finished)
+      .map((e) => e.id);
+
+    mkdirSync(join(OUT_DIR, "live"), { recursive: true });
+
+    for (const gw of finishedGws) {
+      const file = `live/gw${gw}.json`;
+      process.stdout.write(`  ${file} ... `);
+      try {
+        const data = await fetchWithRetry(`${FPL_BASE}/event/${gw}/live/`);
+        writeFileSync(join(OUT_DIR, file), JSON.stringify(data));
+        const sizeKb = (JSON.stringify(data).length / 1024).toFixed(0);
+        console.log(`OK (${sizeKb} KB)`);
+        success++;
+      } catch (err) {
+        console.log(`FAILED (${err.message})`);
+        failed++;
+      }
+      // Small delay to avoid rate limiting
+      await new Promise((r) => setTimeout(r, 300));
+    }
+  } catch (err) {
+    console.log(`  Skipping live GW data: ${err.message}`);
+  }
+
   console.log(`\nDone: ${success} fetched, ${failed} failed.`);
   if (failed > 0) {
     console.log("Warning: Some endpoints failed. The app will fall back to CORS proxies at runtime.");

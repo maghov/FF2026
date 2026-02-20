@@ -73,6 +73,7 @@ p {
   align-items: center;
   gap: 0.5rem;
   padding: 0.5rem 1rem;
+  min-height: 44px;
   border-radius: 8px;
   border: 1px solid transparent;
   font-size: 0.85rem;
@@ -80,6 +81,7 @@ p {
   font-family: inherit;
   cursor: pointer;
   transition: all 0.2s;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .btn-primary {
@@ -142,4 +144,15 @@ p {
 .error-container p {
   color: var(--text-secondary);
   max-width: 400px;
+}
+
+/* Mobile utilities */
+@media (max-width: 640px) {
+  .loading-container {
+    padding: 2.5rem 1rem;
+  }
+
+  .error-container {
+    padding: 2.5rem 1rem;
+  }
 }
