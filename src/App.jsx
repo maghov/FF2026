@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useAuth, AuthProvider } from "./context/AuthContext";
 import { useApi } from "./hooks/useApi";
 import { fetchMyTeam } from "./services/api";
 import MyTeam from "./components/MyTeam";
@@ -7,6 +8,8 @@ import TradeAnalyzer from "./components/TradeAnalyzer";
 import Fixtures from "./components/Fixtures";
 import Formation from "./components/Formation";
 import AdminPage from "./components/AdminPage";
+import LoginPage from "./components/auth/LoginPage";
+import Room3DApp from "./components/Room3DApp";
 import TransferTracker from "./components/TransferTracker";
 import PriceChanges from "./components/PriceChanges";
 import LoginPage from "./components/auth/LoginPage";
@@ -68,10 +71,11 @@ const iconMap = {
   ),
 };
 
+function Dashboard({ onSwitchApp }) {
+  const { user, isAdmin, logout } = useAuth();
 function Dashboard() {
   const { user, fplCode, isAdmin, logout } = useAuth();
   const [activeTab, setActiveTab] = useState("team");
-  const [currentView, setCurrentView] = useState("ff");
   const { data: teamData, loading: teamLoading, error: teamError, reload: teamReload } =
     useApi(fetchMyTeam, [fplCode]);
 
@@ -102,6 +106,9 @@ function Dashboard() {
           </nav>
           <div className="user-info">
             <span className="user-name">{user.displayName}</span>
+            <button className="btn btn-secondary app-switcher" onClick={onSwitchApp}>
+              Room 3D
+            </button>
             <button className="btn btn-secondary" onClick={logout}>
               Logout
             </button>
@@ -127,6 +134,7 @@ function Dashboard() {
 
 function AppContent() {
   const { user, loading } = useAuth();
+  const [destination, setDestination] = useState("ff");
 
   if (loading) {
     return (
@@ -136,7 +144,9 @@ function AppContent() {
     );
   }
 
-  return user ? <Dashboard /> : <LoginPage />;
+  if (!user) return <LoginPage onLogin={setDestination} />;
+  if (destination === "room3d") return <Room3DApp onSwitchApp={() => setDestination("ff")} />;
+  return <Dashboard onSwitchApp={() => setDestination("room3d")} />;
 }
 
 export default function App() {

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useAuth } from "../../context/AuthContext";
 
-export default function LoginPage() {
+export default function LoginPage({ onLogin }) {
   const { login, register } = useAuth();
   const [isRegister, setIsRegister] = useState(false);
   const [formData, setFormData] = useState({
@@ -9,6 +9,7 @@ export default function LoginPage() {
     email: "",
     password: "",
     fplCode: "",
+    destination: "ff",
   });
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -29,6 +30,7 @@ export default function LoginPage() {
       } else {
         await login(formData.email, formData.password);
       }
+      onLogin?.(formData.destination);
     } catch (err) {
       setError(err.message || "Something went wrong.");
     } finally {
@@ -92,6 +94,19 @@ export default function LoginPage() {
               onChange={handleChange}
               placeholder="••••••••"
             />
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="destination">Where do you want to go?</label>
+            <select
+              id="destination"
+              name="destination"
+              value={formData.destination}
+              onChange={handleChange}
+            >
+              <option value="ff">Football Fantasy</option>
+              <option value="room3d">Room 3D</option>
+            </select>
           </div>
 
           {isRegister && (
