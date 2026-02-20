@@ -8,7 +8,6 @@ import TradeAnalyzer from "./components/TradeAnalyzer";
 import Fixtures from "./components/Fixtures";
 import Formation from "./components/Formation";
 import AdminPage from "./components/AdminPage";
-import UserPortal from "./components/portal/UserPortal";
 import LoginPage from "./components/auth/LoginPage";
 import Room3DApp from "./components/Room3DApp";
 import "./App.css";
