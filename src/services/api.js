@@ -14,6 +14,7 @@ import {
   matchUnderstatPlayer,
   getTeamStrength,
 } from "./externalData";
+import { calculateMultiGwXpts } from "./xpts";
 
 /* ── helpers ──────────────────────────────────────────────── */
 
@@ -256,6 +257,40 @@ export async function fetchMyTeam() {
   // Upcoming fixtures
   const upcomingByTeam = getUpcomingFixturesByTeam(fixtures, teams, currentGw);
 
+  // Map a pick to a player object
+  function mapPick(pick) {
+    const p = allPlayers[pick.element];
+    const team = teams[p.team];
+    const teamFixtures = upcomingByTeam[p.team] || [];
+    const nextFix = teamFixtures[0];
+    const form = parseFloat(p.form) || 0;
+
+    return {
+      id: p.id,
+      name: p.web_name,
+      position: positionMap[p.element_type],
+      club: team?.name || "Unknown",
+      clubShort: team?.short_name || "???",
+      teamId: p.team,
+      price: p.now_cost / 10,
+      totalPoints: p.total_points,
+      gameweekPoints: livePoints[p.id] ?? p.event_points ?? 0,
+      form,
+      upcomingFixtures: teamFixtures.slice(0, 5),
+      upcomingFixture: nextFix ? nextFix.opponent : "TBD",
+      fixtureDifficulty: nextFix ? nextFix.difficulty : 3,
+      isCaptain: pick.is_captain,
+      isViceCaptain: pick.is_vice_captain,
+      benchOrder: pick.position > 11 ? pick.position - 11 : 0,
+      // xPts engine fields
+      ictIndex: parseFloat(p.ict_index) || 0,
+      pointsPerGame: parseFloat(p.points_per_game) || 0,
+      chanceOfPlaying: p.chance_of_playing_next_round,
+      bonus: p.bonus || 0,
+      minutes: p.minutes || 0,
+    };
+  }
+
   // Starting XI (positions 1-11)
   const players = picksData.picks
     .filter((pick) => pick.position <= 11)
@@ -312,6 +347,12 @@ export async function fetchMyTeam() {
       };
     });
 
+  // Bench (positions 12-15)
+  const bench = picksData.picks
+    .filter((pick) => pick.position > 11)
+    .sort((a, b) => a.position - b.position)
+    .map(mapPick);
+
   // Captain bonus (base pts × multiplier = total captain contribution)
   const captainPick = picksData.picks.find((p) => p.is_captain);
   const captainBaseGwPts = captainPick
@@ -348,7 +389,7 @@ export async function fetchMyTeam() {
     },
   };
 
-  return { players, summary };
+  return { players, bench, summary, teams };
 }
 
 /* ── fetchGameweekHistory ─────────────────────────────────── */
@@ -451,7 +492,7 @@ export async function fetchAvailablePlayers() {
     .sort((a, b) => parseFloat(b.form) - parseFloat(a.form))
     .slice(0, 150);
 
-  return candidates.map((p) => {
+  const mapped = candidates.map((p) => {
     const team = teams[p.team];
     const form = parseFloat(p.form) || 0;
     const teamFixtures = upcomingByTeam[p.team] || [];
@@ -464,6 +505,7 @@ export async function fetchAvailablePlayers() {
       position: positionMap[p.element_type],
       club: team?.name || "Unknown",
       clubShort: team?.short_name || "???",
+      teamId: p.team,
       price: p.now_cost / 10,
       totalPoints: p.total_points,
       form,
@@ -477,8 +519,16 @@ export async function fetchAvailablePlayers() {
           const oppShort = f.opponent?.match(/^(\w+)/)?.[1] || null;
           return computeExpectedPoints(p, f.difficulty, understatData, oddsData, oppShort);
         }),
+      // xPts engine fields
+      ictIndex: parseFloat(p.ict_index) || 0,
+      pointsPerGame: parseFloat(p.points_per_game) || 0,
+      chanceOfPlaying: p.chance_of_playing_next_round,
+      bonus: p.bonus || 0,
+      minutes: p.minutes || 0,
     };
   });
+
+  return { candidates: mapped, teams };
 }
 
 /* ── fetchLeagueData ──────────────────────────────────────── */
@@ -624,20 +674,292 @@ export async function fetchUpcomingFixtures() {
   }));
 }
 
+/* ── fetchPriceChanges ─────────────────────────────────────── */
+
+export async function fetchPriceChanges() {
+  const [bootstrap, fixtures] = await Promise.all([
+    getBootstrap(),
+    getFixtures(),
+  ]);
+
+  const { teams, positionMap, currentEvent, nextEvent } = buildLookups(bootstrap);
+  const currentGw = currentEvent?.id || 1;
+  const upcomingByTeam = getUpcomingFixturesByTeam(fixtures, teams, currentGw);
+
+  // Deadline & timing info
+  const deadline = nextEvent?.deadline_time || currentEvent?.deadline_time || null;
+  const nextGw = nextEvent?.id || currentGw + 1;
+
+  const players = bootstrap.elements
+    .filter((p) => p.minutes > 0 && p.status === "a")
+    .map((p) => {
+      const team = teams[p.team];
+      const priceData = extractPriceData(p);
+      const teamFixtures = upcomingByTeam[p.team] || [];
+      const nextFix = teamFixtures[0];
+
+      return {
+        id: p.id,
+        name: p.web_name,
+        position: positionMap[p.element_type],
+        club: team?.name || "Unknown",
+        clubShort: team?.short_name || "???",
+        price: p.now_cost / 10,
+        form: parseFloat(p.form) || 0,
+        totalPoints: p.total_points,
+        selectedByPercent: parseFloat(p.selected_by_percent) || 0,
+        ...priceData,
+        nextFixture: nextFix ? nextFix.opponent : "TBD",
+        nextDifficulty: nextFix ? nextFix.difficulty : 3,
+      };
+    });
+
+  // Split into rising, falling, and stable buckets
+  const rising = players
+    .filter((p) => p.pricePressure === "rising" || p.pricePressure === "likely-rising")
+    .sort((a, b) => b.netTransfersEvent - a.netTransfersEvent);
+
+  const falling = players
+    .filter((p) => p.pricePressure === "falling" || p.pricePressure === "likely-falling")
+    .sort((a, b) => a.netTransfersEvent - b.netTransfersEvent);
+
+  // Recent price changes this GW (already happened)
+  const recentChanges = players
+    .filter((p) => p.costChangeEvent !== 0)
+    .sort((a, b) => Math.abs(b.costChangeEvent) - Math.abs(a.costChangeEvent));
+
+  // Biggest season movers
+  const biggestRisers = [...players]
+    .filter((p) => p.costChangeStart > 0)
+    .sort((a, b) => b.costChangeStart - a.costChangeStart)
+    .slice(0, 10);
+
+  const biggestFallers = [...players]
+    .filter((p) => p.costChangeStart < 0)
+    .sort((a, b) => a.costChangeStart - b.costChangeStart)
+    .slice(0, 10);
+
+  return {
+    rising,
+    falling,
+    recentChanges,
+    biggestRisers,
+    biggestFallers,
+    currentGw,
+    nextGw,
+    deadline,
+    lastUpdated: new Date().toLocaleTimeString(),
+  };
+}
+
+/* ── fetchTransferHistory ─────────────────────────────────── */
+
+export async function fetchTransferHistory() {
+  const [bootstrap, history, fixtures] = await Promise.all([
+    getBootstrap(),
+    getManagerHistory(),
+    getFixtures(),
+  ]);
+
+  const { teams, positionMap, players: allPlayers, currentEvent } = buildLookups(bootstrap);
+
+  // Build chip map: gameweek → chip name
+  const chipByGw = {};
+  for (const chip of (history.chips || [])) {
+    chipByGw[chip.event] = chip.name; // "wildcard", "freehit", "bboost", "3xc"
+  }
+  const freeHitGws = new Set(
+    (history.chips || []).filter(c => c.name === 'freehit').map(c => c.event)
+  );
+
+  // Include Free Hit / Wildcard GWs even if event_transfers is 0
+  const playedGws = history.current.filter((gw) =>
+    gw.event_transfers > 0 || chipByGw[gw.event] === 'freehit' || chipByGw[gw.event] === 'wildcard'
+  );
+
+  if (playedGws.length === 0) return { transfers: [], teams, chips: history.chips || [] };
+
+  // Build upcoming fixtures for xPts enrichment
+  const baseGw = currentEvent?.id || history.current[history.current.length - 1]?.event || 1;
+  const upcomingByTeam = getUpcomingFixturesByTeam(fixtures, teams, baseGw);
+
+  // Fetch picks for all played gameweeks (we need GW before and GW of transfer)
+  const allGwIds = history.current.map((gw) => gw.event);
+  const picksMap = {};
+  // Fetch all picks in batches to avoid too many parallel requests
+  const batchSize = 5;
+  for (let i = 0; i < allGwIds.length; i += batchSize) {
+    const batch = allGwIds.slice(i, i + batchSize);
+    const results = await Promise.all(
+      batch.map((gw) => getManagerPicks(gw).catch(() => null))
+    );
+    batch.forEach((gw, idx) => {
+      if (results[idx]) picksMap[gw] = results[idx];
+    });
+  }
+
+  // Detect transfers by comparing consecutive GW picks
+  const transfers = [];
+  for (const gwData of playedGws) {
+    const gw = gwData.event;
+    const gwIdx = allGwIds.indexOf(gw);
+
+    // Determine the correct "previous GW" to compare against
+    let prevGw = null;
+    if (chipByGw[gw] === 'freehit') {
+      // Free Hit GW: compare to immediately previous GW to detect temporary changes
+      prevGw = gwIdx > 0 ? allGwIds[gwIdx - 1] : null;
+    } else {
+      // Normal / Wildcard GW: skip any Free Hit GWs when finding previous squad
+      // (Free Hit squads revert, so comparing against them would detect reversions as transfers)
+      for (let j = gwIdx - 1; j >= 0; j--) {
+        if (!freeHitGws.has(allGwIds[j])) {
+          prevGw = allGwIds[j];
+          break;
+        }
+      }
+    }
+    if (!prevGw || !picksMap[prevGw] || !picksMap[gw]) continue;
+
+    const prevIds = new Set(picksMap[prevGw].picks.map((p) => p.element));
+    const currIds = new Set(picksMap[gw].picks.map((p) => p.element));
+
+    const playersIn = [...currIds].filter((id) => !prevIds.has(id));
+    const playersOut = [...prevIds].filter((id) => !currIds.has(id));
+
+    // Pair transfers (in/out)
+    const count = Math.min(playersIn.length, playersOut.length);
+    for (let i = 0; i < count; i++) {
+      const pIn = allPlayers[playersIn[i]];
+      const pOut = allPlayers[playersOut[i]];
+      if (!pIn || !pOut) continue;
+
+      transfers.push({
+        gameweek: gw,
+        transferCost: chipByGw[gw] ? 0 : gwData.event_transfers_cost,
+        chip: chipByGw[gw] || null,
+        playerIn: {
+          id: pIn.id,
+          name: pIn.web_name,
+          position: positionMap[pIn.element_type],
+          club: teams[pIn.team]?.short_name || "???",
+          clubFull: teams[pIn.team]?.name || "Unknown",
+          price: pIn.now_cost / 10,
+          teamId: pIn.team,
+          form: parseFloat(pIn.form) || 0,
+          ictIndex: parseFloat(pIn.ict_index) || 0,
+          pointsPerGame: parseFloat(pIn.points_per_game) || 0,
+          chanceOfPlaying: pIn.chance_of_playing_next_round,
+          bonus: pIn.bonus || 0,
+          minutes: pIn.minutes || 0,
+          upcomingFixtures: (upcomingByTeam[pIn.team] || []).slice(0, 5),
+        },
+        playerOut: {
+          id: pOut.id,
+          name: pOut.web_name,
+          position: positionMap[pOut.element_type],
+          club: teams[pOut.team]?.short_name || "???",
+          clubFull: teams[pOut.team]?.name || "Unknown",
+          price: pOut.now_cost / 10,
+          teamId: pOut.team,
+          form: parseFloat(pOut.form) || 0,
+          ictIndex: parseFloat(pOut.ict_index) || 0,
+          pointsPerGame: parseFloat(pOut.points_per_game) || 0,
+          chanceOfPlaying: pOut.chance_of_playing_next_round,
+          bonus: pOut.bonus || 0,
+          minutes: pOut.minutes || 0,
+          upcomingFixtures: (upcomingByTeam[pOut.team] || []).slice(0, 5),
+        },
+      });
+    }
+  }
+
+  // Now calculate points for each transfer from the transfer GW onwards
+  const currentGw = Math.max(...allGwIds);
+
+  // Determine when each playerIn left the squad (handles repeated transfers)
+  const sortedGwIds = [...allGwIds].sort((a, b) => a - b);
+  for (const t of transfers) {
+    t.endGameweek = currentGw;
+    let lastInGw = t.gameweek;
+    const startIdx = sortedGwIds.indexOf(t.gameweek);
+    for (let i = startIdx + 1; i < sortedGwIds.length; i++) {
+      const gw = sortedGwIds[i];
+      if (!picksMap[gw]) continue;
+      if (picksMap[gw].picks.some((p) => p.element === t.playerIn.id)) {
+        lastInGw = gw;
+      } else {
+        t.endGameweek = lastInGw;
+        break;
+      }
+    }
+  }
+
+  // Collect all unique GWs we need, then batch-fetch them
+  const gwsNeeded = new Set();
+  for (const t of transfers) {
+    for (let gw = t.gameweek; gw <= t.endGameweek; gw++) {
+      gwsNeeded.add(gw);
+    }
+  }
+  const liveCache = {};
+  const gwBatch = [...gwsNeeded].sort((a, b) => a - b);
+  for (let i = 0; i < gwBatch.length; i += batchSize) {
+    const batch = gwBatch.slice(i, i + batchSize);
+    const results = await Promise.all(
+      batch.map((gw) => getLiveGameweek(gw).catch(() => null))
+    );
+    batch.forEach((gw, idx) => {
+      liveCache[gw] = results[idx];
+    });
+  }
+
+  for (const t of transfers) {
+    let inPoints = 0;
+    let outPoints = 0;
+    const gwBreakdown = [];
+
+    for (let gw = t.gameweek; gw <= t.endGameweek; gw++) {
+      const live = liveCache[gw];
+      if (!live) continue;
+
+      const inEl = live.elements.find((e) => e.id === t.playerIn.id);
+      const outEl = live.elements.find((e) => e.id === t.playerOut.id);
+      const inPts = inEl?.stats?.total_points || 0;
+      const outPts = outEl?.stats?.total_points || 0;
+
+      inPoints += inPts;
+      outPoints += outPts;
+      gwBreakdown.push({
+        gw,
+        inPts,
+        outPts,
+        diff: inPts - outPts,
+      });
+    }
+
+    t.playerIn.pointsSinceTransfer = inPoints;
+    t.playerOut.pointsSinceTransfer = outPoints;
+    t.netGain = inPoints - outPoints;
+    t.gwBreakdown = gwBreakdown;
+    t.gameweeksCompared = gwBreakdown.length;
+  }
+
+  // Sort by most recent first
+  transfers.sort((a, b) => b.gameweek - a.gameweek);
+
+  return { transfers, teams, chips: history.chips || [] };
+}
+
 /* ── analyzeTransfer ──────────────────────────────────────── */
 
-export function analyzeTransfer(playerOut, playerIn, gameweeks) {
-  const outProjected = playerOut.expectedPoints
-    ? playerOut.expectedPoints.slice(0, gameweeks).reduce((s, v) => s + v, 0)
-    : playerOut.pointsHistory
-      ? playerOut.pointsHistory.slice(0, gameweeks).reduce((s, v) => s + v, 0)
-      : Math.round((playerOut.form || 4) * gameweeks);
+export function analyzeTransfer(playerOut, playerIn, gameweeks, teams) {
+  const outResult = calculateMultiGwXpts(playerOut, playerOut.upcomingFixtures, teams, gameweeks);
+  const inResult = calculateMultiGwXpts(playerIn, playerIn.upcomingFixtures, teams, gameweeks);
 
-  const inProjected = playerIn.expectedPoints
-    ? playerIn.expectedPoints.slice(0, gameweeks).reduce((s, v) => s + v, 0)
-    : Math.round((playerIn.form || 4) * gameweeks);
-
-  const pointsDiff = inProjected - outProjected;
+  const outProjected = outResult.totalXpts;
+  const inProjected = inResult.totalXpts;
+  const pointsDiff = +(inProjected - outProjected).toFixed(1);
   const formDiff = (playerIn.form || 0) - (playerOut.form || 0);
   const priceDiff = (playerIn.price || 0) - (playerOut.price || 0);
 
@@ -659,21 +981,21 @@ export function analyzeTransfer(playerOut, playerIn, gameweeks) {
   const fixtureDiff = avgOutDifficulty - avgInDifficulty;
 
   let riskLevel;
-  if (Math.abs(pointsDiff) <= 3 && Math.abs(formDiff) < 1) {
+  if (Math.abs(pointsDiff) <= 2 && Math.abs(formDiff) < 1) {
     riskLevel = "Low";
-  } else if (Math.abs(pointsDiff) > 8 || avgInDifficulty > 3.5) {
+  } else if (Math.abs(pointsDiff) > 5 || avgInDifficulty > 3.5) {
     riskLevel = "High";
   } else {
     riskLevel = "Medium";
   }
 
   let recommendation;
-  if (pointsDiff > 5 && formDiff > 0) {
+  if (pointsDiff > 3 && formDiff >= 0) {
     recommendation = "Strong Buy";
   } else if (pointsDiff > 3 && xgiDiff > 0.1) {
     // New: xG data supports the transfer even with moderate points diff
     recommendation = "Strong Buy";
-  } else if (pointsDiff < -3 || formDiff < -1.5) {
+  } else if (pointsDiff < -2 || formDiff < -1.5) {
     recommendation = "Avoid";
   } else {
     recommendation = "Neutral";
@@ -701,10 +1023,14 @@ export function analyzeTransfer(playerOut, playerIn, gameweeks) {
         ? ` Price alert: ${playerOut.name} is losing ownership — price drop expected.`
         : "";
 
+  // Build reasoning from xPts factors
+  const inReasons = inResult.topReasons;
+  const outReasons = outResult.topReasons;
+
   const explanations = {
-    "Strong Buy": `${playerIn.name} is projected to outscore ${playerOut.name} by ${pointsDiff} points over the next ${gameweeks} gameweeks. With better form (${playerIn.form} vs ${playerOut.form}) and favorable upcoming fixtures, this looks like a smart move.${xgNote}${priceNote}`,
-    Neutral: `This is a sideways move. ${playerIn.name} and ${playerOut.name} are projected similarly over the next ${gameweeks} gameweeks (${pointsDiff > 0 ? "+" : ""}${pointsDiff} point difference). Consider saving the transfer for a better opportunity.${xgNote}${priceNote}`,
-    Avoid: `${playerOut.name} is the better option here. Keeping the current player saves a transfer and is projected to yield ${Math.abs(pointsDiff)} more points over ${gameweeks} gameweeks.${xgNote}${priceNote}`,
+    "Strong Buy": `${playerIn.name} (${inProjected} xPts) is projected to outscore ${playerOut.name} (${outProjected} xPts) over ${gameweeks} GW${gameweeks > 1 ? "s" : ""}. Key factors: ${inReasons.join(", ").toLowerCase()}.`,
+    Neutral: `Sideways move. ${playerIn.name} (${inProjected} xPts) vs ${playerOut.name} (${outProjected} xPts) over ${gameweeks} GW${gameweeks > 1 ? "s" : ""}. Consider saving the transfer.`,
+    Avoid: `${playerOut.name} (${outProjected} xPts) is the better option. Key: ${outReasons.join(", ").toLowerCase()}.`,
   };
 
   return {
@@ -718,6 +1044,8 @@ export function analyzeTransfer(playerOut, playerIn, gameweeks) {
     explanation: explanations[recommendation],
     outProjected,
     inProjected,
+    outReasons,
+    inReasons,
     avgInDifficulty: avgInDifficulty.toFixed(1),
   };
 }

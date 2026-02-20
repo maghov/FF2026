@@ -10,6 +10,10 @@ import Formation from "./components/Formation";
 import AdminPage from "./components/AdminPage";
 import LoginPage from "./components/auth/LoginPage";
 import Room3DApp from "./components/Room3DApp";
+import TransferTracker from "./components/TransferTracker";
+import PriceChanges from "./components/PriceChanges";
+import LoginPage from "./components/auth/LoginPage";
+import { AuthProvider, useAuth } from "./context/AuthContext";
 import "./App.css";
 
 const TABS = [
@@ -17,6 +21,8 @@ const TABS = [
   { id: "formation", label: "Formation", icon: "formation" },
   { id: "points", label: "Points", icon: "chart" },
   { id: "trade", label: "Trade Analyzer", icon: "swap" },
+  { id: "transfers", label: "Transfers", icon: "transfers" },
+  { id: "prices", label: "Prices", icon: "prices" },
   { id: "fixtures", label: "Fixtures", icon: "calendar" },
 ];
 
@@ -48,13 +54,30 @@ const iconMap = {
       <rect x="2" y="2" width="20" height="20" rx="2"/><circle cx="12" cy="5" r="1.5" fill="currentColor"/><circle cx="7" cy="10" r="1.5" fill="currentColor"/><circle cx="17" cy="10" r="1.5" fill="currentColor"/><circle cx="8" cy="16" r="1.5" fill="currentColor"/><circle cx="16" cy="16" r="1.5" fill="currentColor"/><circle cx="12" cy="21" r="1.5" fill="currentColor"/>
     </svg>
   ),
+  prices: (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+    </svg>
+  ),
+  transfers: (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 2v20M2 12h20"/><circle cx="12" cy="5" r="2" fill="currentColor" stroke="none"/><circle cx="12" cy="19" r="2" fill="currentColor" stroke="none"/><path d="M7 9l5-5 5 5M17 15l-5 5-5-5"/>
+    </svg>
+  ),
+  admin: (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 15c-3.87 0-7 1.57-7 3.5V21h14v-2.5c0-1.93-3.13-3.5-7-3.5z"/><circle cx="12" cy="8" r="4"/><path d="M19 8l1.5 1.5L22 8"/>
+    </svg>
+  ),
 };
 
 function Dashboard({ onSwitchApp }) {
   const { user, isAdmin, logout } = useAuth();
+function Dashboard() {
+  const { user, fplCode, isAdmin, logout } = useAuth();
   const [activeTab, setActiveTab] = useState("team");
   const { data: teamData, loading: teamLoading, error: teamError, reload: teamReload } =
-    useApi(fetchMyTeam);
+    useApi(fetchMyTeam, [fplCode]);
 
   const tabs = isAdmin ? [...TABS, ADMIN_TAB] : TABS;
 
@@ -98,11 +121,13 @@ function Dashboard({ onSwitchApp }) {
         {activeTab === "formation" && <Formation teamData={teamData} teamLoading={teamLoading} teamError={teamError} teamReload={teamReload} />}
         {activeTab === "points" && <PointsPerformance teamData={teamData} teamLoading={teamLoading} teamError={teamError} teamReload={teamReload} />}
         {activeTab === "trade" && <TradeAnalyzer teamData={teamData} teamLoading={teamLoading} teamError={teamError} teamReload={teamReload} />}
+        {activeTab === "prices" && <PriceChanges />}
+        {activeTab === "transfers" && <TransferTracker />}
         {activeTab === "fixtures" && <Fixtures />}
         {activeTab === "admin" && isAdmin && <AdminPage />}
       </main>
 
-      <div className="version-label">v0.01</div>
+      <div className="version-label">v0.07</div>
     </div>
   );
 }
