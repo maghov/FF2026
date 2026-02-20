@@ -1,0 +1,149 @@
+.room3d-editor-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 2rem;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.room3d-editor-hint {
+  color: var(--text-secondary);
+}
+
+.room3d-editor-section {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 1rem;
+}
+
+.room3d-editor-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.room3d-editor-input {
+  padding: 0.4rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-family: inherit;
+  background: var(--bg);
+  color: var(--text-primary);
+  width: 80px;
+}
+
+.room3d-editor-input.small {
+  width: 55px;
+}
+
+.room3d-walls-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.room3d-wall-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.room3d-wall-card.uncertain {
+  border-color: #f59e0b;
+  background: rgba(245, 158, 11, 0.05);
+}
+
+.room3d-wall-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.room3d-wall-name {
+  font-weight: 600;
+  font-size: 0.9rem;
+  text-transform: capitalize;
+}
+
+.room3d-uncertain-badge {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #f59e0b;
+  background: rgba(245, 158, 11, 0.1);
+  padding: 0.15rem 0.5rem;
+  border-radius: 10px;
+}
+
+.room3d-feature-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0;
+  border-top: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+
+.room3d-feature-type {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--primary);
+  min-width: 55px;
+  text-transform: capitalize;
+}
+
+.room3d-feature-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.room3d-btn-small {
+  padding: 0.25rem 0.6rem;
+  font-size: 0.75rem;
+}
+
+.room3d-btn-icon {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--card-bg);
+  color: var(--negative);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+
+.room3d-btn-icon:hover {
+  background: rgba(239, 68, 68, 0.1);
+  border-color: var(--negative);
+}
+
+.room3d-floor-plan-preview {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 1rem;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.room3d-floor-plan-preview h4 {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
